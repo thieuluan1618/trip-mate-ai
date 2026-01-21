@@ -20,6 +20,7 @@ import {
   Heart,
   LogOut,
 } from 'lucide-react';
+import { useEffect } from 'react';
 import { analyzeImage, analyzeTripExpenses } from '@/lib/gemini';
 import { compressImage, fileToBase64, fileToPreviewUrl } from '@/lib/imageUtils';
 import { uploadFileToStorage, generateStoragePath } from '@/lib/storageUtils';
@@ -27,6 +28,7 @@ import { appVoice, getRandomMessage, getBudgetStatusWithVibe } from '@/lib/appVo
 import { TripItem, TabType, CategoryInfo } from '@/types';
 import { useAuth } from '@/lib/authContext';
 import { AuthGuard } from '@/components/AuthGuard';
+import { saveTripItem, subscribeTripItems, getOrCreateDefaultTrip } from '@/lib/firestoreUtils';
 
 const categories: Record<string, CategoryInfo> = {
   all: { label: 'Tất cả', icon: Wallet, color: 'bg-gray-100 text-gray-800' },
@@ -174,6 +176,38 @@ function AppContent() {
   const [selectedItem, setSelectedItem] = useState<TripItem | null>(null);
   const [aiAnalysis, setAiAnalysis] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [tripId, setTripId] = useState<string>('trip-1');
+  const [loadingData, setLoadingData] = useState(true);
+
+  // Initialize trip and load data on mount
+  useEffect(() => {
+    const initializeTrip = async () => {
+      try {
+        const userId = user?.uid || 'guest';
+        const id = await getOrCreateDefaultTrip(userId);
+        setTripId(id);
+
+        // Subscribe to real-time updates
+        const unsubscribe = subscribeTripItems(id, (items) => {
+          if (items.length > 0) {
+            setData(items);
+          }
+          setLoadingData(false);
+        });
+
+        return unsubscribe;
+      } catch (error) {
+        console.error('Failed to initialize trip:', error);
+        setLoadingData(false);
+      }
+    };
+
+    const unsubscribe = initializeTrip().then((unsub) => unsub);
+
+    return () => {
+      unsubscribe?.then((unsub) => unsub?.());
+    };
+  }, [user]);
 
   // Stats
   const stats = useMemo(() => {
@@ -189,15 +223,26 @@ function AppContent() {
     return { total, byCategory, expenses };
   }, [data]);
 
-  const handleAddResult = (newItem: TripItem) => {
-    // Add user info if logged in
-    const itemWithUser = {
-      ...newItem,
-      createdBy: user?.uid || 'guest',
-    };
-    setData((prev) => [itemWithUser, ...prev]);
-    if (newItem.type === 'expense') {
-      alert(`${getRandomMessage(appVoice.successMessages)}\n\n${newItem.name} • ${newItem.amount}k`);
+  const handleAddResult = async (newItem: TripItem) => {
+    try {
+      // Add user info if logged in
+      const itemWithUser = {
+        ...newItem,
+        createdBy: user?.uid || 'guest',
+      };
+
+      // Save to Firestore
+      await saveTripItem(tripId, itemWithUser);
+
+      // Add to local state (will be updated by Firestore listener)
+      setData((prev) => [itemWithUser, ...prev]);
+
+      if (newItem.type === 'expense') {
+        alert(`${getRandomMessage(appVoice.successMessages)}\n\n${newItem.name} • ${newItem.amount}k`);
+      }
+    } catch (error) {
+      console.error('Failed to add result:', error);
+      alert(getRandomMessage(appVoice.uploadErrors));
     }
   };
 
