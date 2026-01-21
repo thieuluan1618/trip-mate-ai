@@ -1,10 +1,10 @@
 'use client';
 
 import React from 'react';
-import { Wallet, Utensils, Car, Home, Gift, MapPin, Heart } from 'lucide-react';
+import { Wallet, Utensils, Car, Home, Gift, MapPin, Heart, Video } from 'lucide-react';
 
 export type FilterType = 'all' | 'expense' | 'memory';
-export type CategoryType = 'food' | 'transport' | 'stay' | 'other' | 'scenery' | 'memory';
+export type CategoryType = 'food' | 'transport' | 'stay' | 'other' | 'scenery' | 'memory' | 'video';
 
 interface FilterChipsProps {
   filter: FilterType;
@@ -20,6 +20,7 @@ const categories = {
   other: { label: 'Khác', icon: Gift, color: 'bg-pink-100 text-pink-700 border-pink-200' },
   scenery: { label: 'Phong cảnh', icon: MapPin, color: 'bg-teal-100 text-teal-700 border-teal-200' },
   memory: { label: 'Kỷ niệm', icon: Heart, color: 'bg-rose-100 text-rose-700 border-rose-200' },
+  video: { label: 'Video', icon: Video, color: 'bg-indigo-100 text-indigo-700 border-indigo-200' },
 };
 
 export const FilterChips: React.FC<FilterChipsProps> = ({

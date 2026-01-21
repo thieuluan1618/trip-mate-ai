@@ -16,10 +16,11 @@ export interface TripItem {
   tripId: string;
   name: string;
   amount: number; // 0 if memory
-  category: 'food' | 'transport' | 'stay' | 'other' | 'scenery' | 'memory';
+  category: 'food' | 'transport' | 'stay' | 'other' | 'scenery' | 'memory' | 'video';
   type: 'expense' | 'memory';
   storagePath?: string; // Firebase Storage path
-  imageUrl?: string; // Public signed URL (primary image)
+  imageUrl?: string; // Public signed URL (primary image/video)
+  videoUrl?: string; // For videos
   images?: string[]; // Multiple image URLs for grouped bills
   timestamp: Date;
   description: string;

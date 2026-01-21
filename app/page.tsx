@@ -19,6 +19,8 @@ import {
   MapPin,
   Heart,
   LogOut,
+  Video,
+  LogIn,
 } from 'lucide-react';
 import { useEffect } from 'react';
 import { analyzeImage, analyzeTripExpenses } from '@/lib/gemini';
@@ -43,6 +45,7 @@ const categories: Record<string, CategoryInfo> = {
   other: { label: 'Khác', icon: Gift, color: 'bg-pink-100 text-pink-600' },
   scenery: { label: 'Phong cảnh', icon: MapPin, color: 'bg-teal-100 text-teal-600' },
   memory: { label: 'Kỷ niệm', icon: Heart, color: 'bg-rose-100 text-rose-600' },
+  video: { label: 'Video', icon: Video, color: 'bg-indigo-100 text-indigo-700' },
 };
 
 const mockData: TripItem[] = [
@@ -79,9 +82,10 @@ const AuthButton = () => {
   return (
     <button
       onClick={signIn}
-      className="px-3 py-1 text-sm rounded-lg bg-indigo-100 text-indigo-700 hover:bg-indigo-200 transition-colors font-semibold"
+      className="p-2 rounded-lg bg-indigo-100 text-indigo-700 hover:bg-indigo-200 transition-colors"
+      title="Đăng nhập"
     >
-      Đăng nhập
+      <LogIn className="w-5 h-5" />
     </button>
   );
 };
@@ -104,52 +108,96 @@ const SmartUploader = ({
   const [previewItem, setPreviewItem] = useState<(TripItem & { previewUrl?: string }) | null>(null);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState({ current: 0, total: 0 });
 
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
     if (!files || files.length === 0) return;
 
+    // File size validation (50MB for images, 100MB for videos)
+    const MAX_IMAGE_SIZE = 50 * 1024 * 1024; // 50MB
+    const MAX_VIDEO_SIZE = 100 * 1024 * 1024; // 100MB
+
+    const oversizedFiles = Array.from(files).filter(file => {
+      if (file.type.startsWith('image/')) {
+        return file.size > MAX_IMAGE_SIZE;
+      } else if (file.type.startsWith('video/')) {
+        return file.size > MAX_VIDEO_SIZE;
+      }
+      return false;
+    });
+
+    if (oversizedFiles.length > 0) {
+      showToast(`File quá lớn! Giới hạn 50MB/ảnh, 100MB/video.`, 'error');
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
+
     setIsProcessing(true);
 
     const fileArray = Array.from(files);
+    setUploadProgress({ current: 0, total: fileArray.length });
+
     let successCount = 0;
     let errorCount = 0;
 
     for (let i = 0; i < fileArray.length; i++) {
       const file = fileArray[i];
+      setUploadProgress({ current: i + 1, total: fileArray.length });
       try {
-        // 1. Compress image
-        const compressedFile = await compressImage(file);
+        // Check if video
+        const isVideo = file.type.startsWith('video/');
 
-        // 2. Convert to Base64
-        const base64Data = await fileToBase64(compressedFile);
+        if (isVideo) {
+          // Handle video - NO AI analysis, just upload
+          const storagePath = generateStoragePath(tripId, file.name);
+          const downloadUrl = await uploadFileToStorage(file, storagePath);
 
-        // 3. Analyze with Gemini
-        const aiData = await analyzeImage(base64Data, compressedFile.type);
+          // Create video item without AI
+          const newItem: TripItem = {
+            id: Date.now().toString() + '-' + Math.random().toString(36).substring(2, 11),
+            tripId,
+            name: file.name.replace(/\.[^/.]+$/, ''), // Remove extension
+            amount: 0,
+            category: 'video',
+            type: 'memory',
+            videoUrl: downloadUrl,
+            timestamp: new Date(),
+            description: 'Video kỷ niệm 🎬',
+            createdBy: userId,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          };
 
-        // 4. Upload to Firebase Storage
-        const storagePath = generateStoragePath(tripId, compressedFile.name);
-        const downloadUrl = await uploadFileToStorage(compressedFile, storagePath);
+          onAddResult(newItem);
+          successCount++;
+        } else {
+          // Handle image with AI analysis
+          const compressedFile = await compressImage(file);
+          const base64Data = await fileToBase64(compressedFile);
+          const aiData = await analyzeImage(base64Data, compressedFile.type);
 
-        // 5. Create and save item
-        const newItem: TripItem = {
-          id: Date.now().toString() + '-' + Math.random().toString(36).substring(2, 11),
-          tripId,
-          name: aiData.name,
-          amount: aiData.amount,
-          category: aiData.category,
-          type: aiData.type,
-          imageUrl: downloadUrl,
-          timestamp: new Date(),
-          description: aiData.description,
-          createdBy: userId,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        };
+          const storagePath = generateStoragePath(tripId, compressedFile.name);
+          const downloadUrl = await uploadFileToStorage(compressedFile, storagePath);
 
-        // 6. Save to Firestore
-        onAddResult(newItem);
-        successCount++;
+          const newItem: TripItem = {
+            id: Date.now().toString() + '-' + Math.random().toString(36).substring(2, 11),
+            tripId,
+            name: aiData.name,
+            amount: aiData.amount,
+            category: aiData.category,
+            type: aiData.type,
+            imageUrl: downloadUrl,
+            timestamp: new Date(),
+            description: aiData.description,
+            createdBy: userId,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          };
+
+          onAddResult(newItem);
+          successCount++;
+        }
       } catch (error) {
         console.error('Upload Failed for file:', file.name, error);
         errorCount++;
@@ -161,9 +209,9 @@ const SmartUploader = ({
 
     // Show summary toast
     if (successCount > 0 && errorCount === 0) {
-      showToast(`Đã lưu ${successCount} ảnh thành công! ✅`, 'success');
+      showToast(`Đã lưu ${successCount} file thành công! ✅`, 'success');
     } else if (successCount > 0 && errorCount > 0) {
-      showToast(`Đã lưu ${successCount} ảnh, ${errorCount} lỗi ⚠️`, 'success');
+      showToast(`Đã lưu ${successCount} file, ${errorCount} lỗi ⚠️`, 'success');
     } else {
       showToast(getRandomMessage(appVoice.uploadErrors), 'error');
     }
@@ -217,7 +265,7 @@ const SmartUploader = ({
       <div>
         <input
           type="file"
-          accept="image/*"
+          accept="image/*,video/*"
           multiple
           className="hidden"
           ref={fileInputRef}
@@ -230,7 +278,8 @@ const SmartUploader = ({
         >
           {isProcessing ? (
             <>
-              <Loader2 className="w-5 h-5 animate-spin" /> Đang xử lý...
+              <Loader2 className="w-5 h-5 animate-spin" />
+              {uploadProgress.total > 0 ? `${uploadProgress.current}/${uploadProgress.total}` : 'Đang xử lý...'}
             </>
           ) : (
             <>

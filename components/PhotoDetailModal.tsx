@@ -21,6 +21,7 @@ const categoryColors: Record<string, string> = {
   other: 'bg-pink-100 text-pink-700',
   scenery: 'bg-teal-100 text-teal-700',
   memory: 'bg-rose-100 text-rose-700',
+  video: 'bg-indigo-100 text-indigo-700',
 };
 
 const categoryLabels: Record<string, string> = {
@@ -30,6 +31,7 @@ const categoryLabels: Record<string, string> = {
   other: 'Khác',
   scenery: 'Phong cảnh',
   memory: 'Kỷ niệm',
+  video: 'Video',
 };
 
 export const PhotoDetailModal: React.FC<PhotoDetailModalProps> = ({
@@ -50,9 +52,13 @@ export const PhotoDetailModal: React.FC<PhotoDetailModalProps> = ({
   }, [item.id, allItems]);
 
   // Get all images for current item
-  const getCurrentImages = useCallback(() => {
+  const getCurrentMedia = useCallback(() => {
     const currentItem = allItems[currentIndex];
     if (!currentItem) return [];
+    // If video, return video URL
+    if (currentItem.videoUrl) {
+      return [currentItem.videoUrl];
+    }
     // Combine main image with additional images if any
     const images = currentItem.images || [];
     if (currentItem.imageUrl) {
@@ -61,7 +67,8 @@ export const PhotoDetailModal: React.FC<PhotoDetailModalProps> = ({
     return images;
   }, [currentIndex, allItems]);
 
-  const currentImages = getCurrentImages();
+  const currentMedia = getCurrentMedia();
+  const isVideo = allItems[currentIndex]?.videoUrl ? true : false;
 
   // Handle keyboard navigation
   useEffect(() => {
@@ -77,7 +84,7 @@ export const PhotoDetailModal: React.FC<PhotoDetailModalProps> = ({
   }, [isOpen, currentIndex, currentImageIndex]);
 
   const handlePrev = () => {
-    if (currentImages.length > 1 && currentImageIndex > 0) {
+    if (currentMedia.length > 1 && currentImageIndex > 0) {
       setCurrentImageIndex(currentImageIndex - 1);
     } else if (currentIndex > 0) {
       setCurrentIndex(currentIndex - 1);
@@ -86,7 +93,7 @@ export const PhotoDetailModal: React.FC<PhotoDetailModalProps> = ({
   };
 
   const handleNext = () => {
-    if (currentImages.length > 1 && currentImageIndex < currentImages.length - 1) {
+    if (currentMedia.length > 1 && currentImageIndex < currentMedia.length - 1) {
       setCurrentImageIndex(currentImageIndex + 1);
     } else if (currentIndex < allItems.length - 1) {
       setCurrentIndex(currentIndex + 1);
@@ -97,7 +104,7 @@ export const PhotoDetailModal: React.FC<PhotoDetailModalProps> = ({
   const currentItem = allItems[currentIndex];
   if (!currentItem) return null;
 
-  const currentImageUrl = currentImages[currentImageIndex] || currentItem.imageUrl;
+  const currentMediaUrl = currentMedia[currentImageIndex] || currentItem.imageUrl || currentItem.videoUrl;
 
   return (
     <AnimatePresence>
@@ -139,21 +146,33 @@ export const PhotoDetailModal: React.FC<PhotoDetailModalProps> = ({
             </button>
           </div>
 
-          {/* Image Container */}
+          {/* Image/Video Container */}
           <div className="flex-1 flex items-center justify-center p-4" onClick={(e) => e.stopPropagation()}>
-            <motion.img
-              key={currentImageUrl}
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              transition={{ duration: 0.2 }}
-              src={currentImageUrl}
-              alt={currentItem.name}
-              className="max-w-full max-h-[70vh] object-contain rounded-lg shadow-2xl"
-            />
+            {isVideo ? (
+              <motion.video
+                key={currentMediaUrl}
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ duration: 0.2 }}
+                src={currentMediaUrl}
+                controls
+                className="max-w-full max-h-[70vh] object-contain rounded-lg shadow-2xl"
+              />
+            ) : (
+              <motion.img
+                key={currentMediaUrl}
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ duration: 0.2 }}
+                src={currentMediaUrl}
+                alt={currentItem.name}
+                className="max-w-full max-h-[70vh] object-contain rounded-lg shadow-2xl"
+              />
+            )}
           </div>
 
           {/* Navigation Arrows */}
-          {currentImages.length > 1 || currentIndex > 0 ? (
+          {currentMedia.length > 1 || currentIndex > 0 ? (
             <button
               onClick={(e) => {
                 e.stopPropagation();
@@ -164,7 +183,7 @@ export const PhotoDetailModal: React.FC<PhotoDetailModalProps> = ({
               <ChevronLeft className="w-6 h-6" />
             </button>
           ) : null}
-          {currentImages.length > 1 || currentIndex < allItems.length - 1 ? (
+          {currentMedia.length > 1 || currentIndex < allItems.length - 1 ? (
             <button
               onClick={(e) => {
                 e.stopPropagation();
@@ -177,9 +196,9 @@ export const PhotoDetailModal: React.FC<PhotoDetailModalProps> = ({
           ) : null}
 
           {/* Image Dots Indicator */}
-          {currentImages.length > 1 && (
+          {currentMedia.length > 1 && (
             <div className="absolute bottom-32 left-1/2 -translate-x-1/2 flex gap-2">
-              {currentImages.map((_, idx) => (
+              {currentMedia.map((_, idx) => (
                 <button
                   key={idx}
                   onClick={(e) => {
@@ -227,9 +246,9 @@ export const PhotoDetailModal: React.FC<PhotoDetailModalProps> = ({
                 <p className="text-sm opacity-80 italic">"{currentItem.description}"</p>
               )}
 
-              {currentImages.length > 1 && (
+              {currentMedia.length > 1 && (
                 <div className="mt-2 text-xs opacity-60">
-                  Ảnh {currentImageIndex + 1} / {currentImages.length}
+                  {isVideo ? 'Video' : 'Ảnh'} {currentImageIndex + 1} / {currentMedia.length}
                 </div>
               )}
 
