@@ -18,11 +18,14 @@ import {
   Camera,
   MapPin,
   Heart,
+  LogOut,
 } from 'lucide-react';
 import { analyzeImage, analyzeTripExpenses } from '@/lib/gemini';
 import { compressImage, fileToBase64, fileToPreviewUrl } from '@/lib/imageUtils';
 import { appVoice, getRandomMessage, getBudgetStatusWithVibe } from '@/lib/appVoice';
 import { TripItem, TabType, CategoryInfo } from '@/types';
+import { useAuth } from '@/lib/authContext';
+import { AuthGuard } from '@/components/AuthGuard';
 
 const categories: Record<string, CategoryInfo> = {
   all: { label: 'Tất cả', icon: Wallet, color: 'bg-gray-100 text-gray-800' },
@@ -62,6 +65,18 @@ const mockData: TripItem[] = [
     updatedAt: new Date(),
   },
 ];
+
+const AuthButton = () => {
+  const { signIn } = useAuth();
+  return (
+    <button
+      onClick={signIn}
+      className="px-3 py-1 text-sm rounded-lg bg-indigo-100 text-indigo-700 hover:bg-indigo-200 transition-colors font-semibold"
+    >
+      Đăng nhập
+    </button>
+  );
+};
 
 const SmartUploader = ({
   onAddResult,
@@ -149,7 +164,8 @@ const SmartUploader = ({
   );
 };
 
-export default function App() {
+function AppContent() {
+  const { user, logOut } = useAuth();
   const [data, setData] = useState<TripItem[]>(mockData);
   const [activeTab, setActiveTab] = useState<TabType>('timeline');
   const [isProcessing, setIsProcessing] = useState(false);
@@ -173,7 +189,12 @@ export default function App() {
   }, [data]);
 
   const handleAddResult = (newItem: TripItem) => {
-    setData((prev) => [newItem, ...prev]);
+    // Add user info if logged in
+    const itemWithUser = {
+      ...newItem,
+      createdBy: user?.uid || 'guest',
+    };
+    setData((prev) => [itemWithUser, ...prev]);
     if (newItem.type === 'expense') {
       alert(`${getRandomMessage(appVoice.successMessages)}\n\n${newItem.name} • ${newItem.amount}k`);
     }
@@ -207,7 +228,9 @@ export default function App() {
             <h1 className="text-xl font-black bg-gradient-to-r from-indigo-600 to-violet-600 bg-clip-text text-transparent">
               Trip Mate AI
             </h1>
-            <p className="text-xs text-slate-500 font-medium">Sổ quỹ & Nhật ký hành trình</p>
+            <p className="text-xs text-slate-500 font-medium">
+              {user ? user.displayName : '👤 Chưa đăng nhập'}
+            </p>
           </div>
           <div className="flex gap-2">
             <button
@@ -230,6 +253,17 @@ export default function App() {
             >
               <PieChart className="w-5 h-5" />
             </button>
+            {user ? (
+              <button
+                onClick={logOut}
+                className="p-2 rounded-lg transition-all text-slate-400 hover:bg-slate-50"
+                title="Đăng xuất"
+              >
+                <LogOut className="w-5 h-5" />
+              </button>
+            ) : (
+              <AuthButton />
+            )}
           </div>
         </div>
 
@@ -446,5 +480,13 @@ export default function App() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <AuthGuard>
+      <AppContent />
+    </AuthGuard>
   );
 }
