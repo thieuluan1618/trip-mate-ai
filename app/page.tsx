@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { analyzeImage, analyzeTripExpenses } from '@/lib/gemini';
 import { compressImage, fileToBase64, fileToPreviewUrl } from '@/lib/imageUtils';
+import { uploadFileToStorage, generateStoragePath } from '@/lib/storageUtils';
 import { appVoice, getRandomMessage, getBudgetStatusWithVibe } from '@/lib/appVoice';
 import { TripItem, TabType, CategoryInfo } from '@/types';
 import { useAuth } from '@/lib/authContext';
