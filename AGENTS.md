@@ -285,15 +285,17 @@ Budget:   "⚠️ Cảnh báo: Ví đang 'cay'!"
 
 ## 🔐 Environment Setup Checklist
 
-- [ ] Clone repo
-- [ ] Run `npm install`
-- [ ] Create Firebase project (https://console.firebase.google.com)
-- [ ] Enable Authentication (Google Sign-in)
-- [ ] Create Firestore database
-- [ ] Create Cloud Storage bucket
-- [ ] Copy credentials to `.env.local`
-- [ ] Get Gemini API key (https://ai.google.dev)
-- [ ] Run `npm run dev`
+- [x] Clone repo
+- [x] Run `npm install`
+- [x] Create Firebase project (https://console.firebase.google.com)
+- [x] Enable Authentication (Google Sign-in)
+- [x] Create Firestore database
+- [x] Create Cloud Storage bucket
+- [x] Register Web app → copy Firebase config to `.env.local`
+- [x] Deploy Storage rules: `firebase deploy --only storage`
+- [ ] Get Gemini API key (https://ai.google.dev) - Optional for now
+- [ ] Run `npm run dev` to test locally
+- [ ] Add env vars to Vercel dashboard
 
 ---
 
