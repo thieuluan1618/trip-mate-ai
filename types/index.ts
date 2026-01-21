@@ -3,8 +3,10 @@ export interface Trip {
   tripName: string;
   totalBudget: number;
   startDate: Date;
+  endDate?: Date;
   currency: string;
   memberCount: number;
+  createdBy: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -17,7 +19,8 @@ export interface TripItem {
   category: 'food' | 'transport' | 'stay' | 'other' | 'scenery' | 'memory';
   type: 'expense' | 'memory';
   storagePath?: string; // Firebase Storage path
-  imageUrl?: string; // Public signed URL
+  imageUrl?: string; // Public signed URL (primary image)
+  images?: string[]; // Multiple image URLs for grouped bills
   timestamp: Date;
   description: string;
   createdBy: string; // userId
@@ -31,4 +34,4 @@ export interface CategoryInfo {
   color: string;
 }
 
-export type TabType = 'timeline' | 'dashboard';
+export type TabType = 'gallery' | 'timeline' | 'dashboard';

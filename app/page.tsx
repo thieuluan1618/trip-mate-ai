@@ -22,13 +22,18 @@ import {
 } from 'lucide-react';
 import { useEffect } from 'react';
 import { analyzeImage, analyzeTripExpenses } from '@/lib/gemini';
-import { compressImage, fileToBase64, fileToPreviewUrl } from '@/lib/imageUtils';
+import { compressImage, fileToBase64 } from '@/lib/imageUtils';
 import { uploadFileToStorage, generateStoragePath } from '@/lib/storageUtils';
 import { appVoice, getRandomMessage, getBudgetStatusWithVibe } from '@/lib/appVoice';
 import { TripItem, TabType, CategoryInfo } from '@/types';
 import { useAuth } from '@/lib/authContext';
 import { AuthGuard } from '@/components/AuthGuard';
-import { saveTripItem, subscribeTripItems, getOrCreateDefaultTrip } from '@/lib/firestoreUtils';
+import { useToast } from '@/components/Toast';
+import { PreviewModal } from '@/components/PreviewModal';
+import { PhotoGrid } from '@/components/PhotoGrid';
+import { PhotoDetailModal } from '@/components/PhotoDetailModal';
+import { FilterChips, FilterType, CategoryType } from '@/components/FilterChips';
+import { saveTripItem, subscribeTripItems, getOrCreateDefaultTrip, getUserTrips } from '@/lib/firestoreUtils';
 
 const categories: Record<string, CategoryInfo> = {
   all: { label: 'Tất cả', icon: Wallet, color: 'bg-gray-100 text-gray-800' },
@@ -85,92 +90,180 @@ const SmartUploader = ({
   onAddResult,
   isProcessing,
   setIsProcessing,
+  tripId,
+  userId,
 }: {
   onAddResult: (item: TripItem) => void;
   isProcessing: boolean;
   setIsProcessing: (val: boolean) => void;
+  tripId: string;
+  userId: string;
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { showToast } = useToast();
+  const [previewItem, setPreviewItem] = useState<(TripItem & { previewUrl?: string }) | null>(null);
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
 
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
 
     setIsProcessing(true);
-    try {
-      // 1. Compress image
-      const compressedFile = await compressImage(file);
 
-      // 2. Convert to Base64
-      const base64Data = await fileToBase64(compressedFile);
+    const fileArray = Array.from(files);
+    let successCount = 0;
+    let errorCount = 0;
 
-      // 3. Get preview URL
-      const previewUrl = fileToPreviewUrl(compressedFile);
+    for (let i = 0; i < fileArray.length; i++) {
+      const file = fileArray[i];
+      try {
+        // 1. Compress image
+        const compressedFile = await compressImage(file);
 
-      // 4. Analyze with Gemini
-      const aiData = await analyzeImage(base64Data, compressedFile.type);
+        // 2. Convert to Base64
+        const base64Data = await fileToBase64(compressedFile);
 
-      // 5. Create new item
-      const newItem: TripItem = {
-        id: Date.now().toString(),
-        tripId: 'trip-1', // TODO: Use actual trip ID
-        name: aiData.name,
-        amount: aiData.amount,
-        category: aiData.category,
-        type: aiData.type,
-        imageUrl: previewUrl,
-        timestamp: new Date(),
-        description: aiData.description,
-        createdBy: 'user-1', // TODO: Use actual user ID
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
+        // 3. Analyze with Gemini
+        const aiData = await analyzeImage(base64Data, compressedFile.type);
 
-      onAddResult(newItem);
-    } catch (error) {
-      console.error('AI Analysis Failed:', error);
-      alert(getRandomMessage(appVoice.uploadErrors));
-    } finally {
-      setIsProcessing(false);
-      if (fileInputRef.current) fileInputRef.current.value = '';
+        // 4. Upload to Firebase Storage
+        const storagePath = generateStoragePath(tripId, compressedFile.name);
+        const downloadUrl = await uploadFileToStorage(compressedFile, storagePath);
+
+        // 5. Create and save item
+        const newItem: TripItem = {
+          id: Date.now().toString() + '-' + Math.random().toString(36).substring(2, 11),
+          tripId,
+          name: aiData.name,
+          amount: aiData.amount,
+          category: aiData.category,
+          type: aiData.type,
+          imageUrl: downloadUrl,
+          timestamp: new Date(),
+          description: aiData.description,
+          createdBy: userId,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        };
+
+        // 6. Save to Firestore
+        onAddResult(newItem);
+        successCount++;
+      } catch (error) {
+        console.error('Upload Failed for file:', file.name, error);
+        errorCount++;
+      }
+    }
+
+    setIsProcessing(false);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+
+    // Show summary toast
+    if (successCount > 0 && errorCount === 0) {
+      showToast(`Đã lưu ${successCount} ảnh thành công! ✅`, 'success');
+    } else if (successCount > 0 && errorCount > 0) {
+      showToast(`Đã lưu ${successCount} ảnh, ${errorCount} lỗi ⚠️`, 'success');
+    } else {
+      showToast(getRandomMessage(appVoice.uploadErrors), 'error');
     }
   };
 
+  const handleConfirm = async () => {
+    if (!previewItem || !pendingFile) return;
+    setIsSaving(true);
+    try {
+      // 1. Upload image to Firebase Storage
+      const storagePath = generateStoragePath(tripId, pendingFile.name);
+      const downloadUrl = await uploadFileToStorage(pendingFile, storagePath);
+
+      // 2. Create final item with Storage URL
+      const finalItem: TripItem = {
+        ...previewItem,
+        imageUrl: downloadUrl,
+      };
+      delete (finalItem as any).previewUrl;
+
+      // 3. Save to Firestore
+      onAddResult(finalItem);
+      showToast(getRandomMessage(appVoice.successMessages), 'success', 3000);
+      
+      // 4. Clean up
+      setPreviewItem(null);
+      setPendingFile(null);
+    } catch (error) {
+      console.error('Failed to save:', error);
+      showToast(getRandomMessage(appVoice.uploadErrors), 'error');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleCancel = () => {
+    setPreviewItem(null);
+    setPendingFile(null);
+  };
+
+  const handleEditField = (field: string, value: any) => {
+    if (!previewItem) return;
+    setPreviewItem({
+      ...previewItem,
+      [field]: value,
+    });
+  };
+
   return (
-    <div>
-      <input
-        type="file"
-        accept="image/*"
-        className="hidden"
-        ref={fileInputRef}
-        onChange={handleFileSelect}
-      />
-      <button
-        onClick={() => fileInputRef.current?.click()}
-        disabled={isProcessing}
-        className="w-full bg-gradient-to-r from-pink-500 to-rose-500 text-white p-3 rounded-xl font-bold shadow-lg shadow-pink-200 flex items-center justify-center gap-2 hover:scale-[1.02] transition-transform active:scale-95 disabled:opacity-50"
-      >
-        {isProcessing ? (
-          <>
-            <Loader2 className="w-5 h-5 animate-spin" /> Đang phân tích ảnh...
-          </>
-        ) : (
-          <>
-            <Camera className="w-5 h-5" /> Thêm Bill / Ảnh mới
-          </>
-        )}
-      </button>
-      <p className="text-xs text-center text-slate-400 mt-2">
-        {appVoice.tooltips.upload}
-      </p>
-    </div>
+    <>
+      <div>
+        <input
+          type="file"
+          accept="image/*"
+          multiple
+          className="hidden"
+          ref={fileInputRef}
+          onChange={handleFileSelect}
+        />
+        <button
+          onClick={() => fileInputRef.current?.click()}
+          disabled={isProcessing}
+          className="w-full bg-gradient-to-r from-pink-500 to-rose-500 text-white p-3 rounded-xl font-bold shadow-lg shadow-pink-200 flex items-center justify-center gap-2 hover:scale-[1.02] transition-transform active:scale-95 disabled:opacity-50"
+        >
+          {isProcessing ? (
+            <>
+              <Loader2 className="w-5 h-5 animate-spin" /> Đang xử lý...
+            </>
+          ) : (
+            <>
+              <Camera className="w-5 h-5" /> Thêm Bill / Ảnh mới
+            </>
+          )}
+        </button>
+        <p className="text-xs text-center text-slate-400 mt-2">
+          {appVoice.tooltips.upload}
+        </p>
+      </div>
+
+      {previewItem && (
+        <PreviewModal
+          item={previewItem}
+          isOpen={!!previewItem}
+          isLoading={isSaving}
+          onConfirm={handleConfirm}
+          onCancel={handleCancel}
+          onEdit={handleEditField}
+        />
+      )}
+    </>
   );
 };
 
 function AppContent() {
   const { user, logOut } = useAuth();
-  const [data, setData] = useState<TripItem[]>(mockData);
-  const [activeTab, setActiveTab] = useState<TabType>('timeline');
+  const { showToast } = useToast();
+  const [data, setData] = useState<TripItem[]>([]);
+  const [activeTab, setActiveTab] = useState<TabType>('gallery');
+  const [filter, setFilter] = useState<FilterType>('all');
+  const [categoryFilter, setCategoryFilter] = useState<CategoryType | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [numPeople, setNumPeople] = useState(1);
   const [selectedItem, setSelectedItem] = useState<TripItem | null>(null);
@@ -184,13 +277,27 @@ function AppContent() {
     const initializeTrip = async () => {
       try {
         const userId = user?.uid || 'guest';
-        const id = await getOrCreateDefaultTrip(userId);
+        
+        // Try to get existing trips first
+        const trips = await getUserTrips(userId);
+        let id: string;
+        
+        if (trips.length > 0) {
+          // Use the most recent trip
+          id = trips[0].id;
+        } else {
+          // Create default trip if none exists
+          id = await getOrCreateDefaultTrip(userId);
+        }
+        
         setTripId(id);
 
         // Subscribe to real-time updates
         const unsubscribe = subscribeTripItems(id, (items) => {
           if (items.length > 0) {
             setData(items);
+          } else {
+            setData([]); // Clear mock data if no items
           }
           setLoadingData(false);
         });
@@ -209,6 +316,25 @@ function AppContent() {
     };
   }, [user]);
 
+  // Filter data based on filters
+  const filteredData = useMemo(() => {
+    let filtered = [...data];
+
+    // Apply main filter
+    if (filter === 'expense') {
+      filtered = filtered.filter((item) => item.type === 'expense');
+    } else if (filter === 'memory') {
+      filtered = filtered.filter((item) => item.type === 'memory');
+    }
+
+    // Apply category filter
+    if (categoryFilter) {
+      filtered = filtered.filter((item) => item.category === categoryFilter);
+    }
+
+    return filtered.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+  }, [data, filter, categoryFilter]);
+
   // Stats
   const stats = useMemo(() => {
     const expenses = data.filter((i) => i.type === 'expense');
@@ -225,24 +351,13 @@ function AppContent() {
 
   const handleAddResult = async (newItem: TripItem) => {
     try {
-      // Add user info if logged in
-      const itemWithUser = {
-        ...newItem,
-        createdBy: user?.uid || 'guest',
-      };
+      // Save to Firestore (userId already set in SmartUploader)
+      await saveTripItem(tripId, newItem);
 
-      // Save to Firestore
-      await saveTripItem(tripId, itemWithUser);
-
-      // Add to local state (will be updated by Firestore listener)
-      setData((prev) => [itemWithUser, ...prev]);
-
-      if (newItem.type === 'expense') {
-        alert(`${getRandomMessage(appVoice.successMessages)}\n\n${newItem.name} • ${newItem.amount}k`);
-      }
+      // Firestore listener will update the data automatically
     } catch (error) {
       console.error('Failed to add result:', error);
-      alert(getRandomMessage(appVoice.uploadErrors));
+      showToast(getRandomMessage(appVoice.uploadErrors), 'error');
     }
   };
 
@@ -280,12 +395,24 @@ function AppContent() {
           </div>
           <div className="flex gap-2">
             <button
+              onClick={() => setActiveTab('gallery')}
+              className={`p-2 rounded-lg transition-all ${
+                activeTab === 'gallery'
+                  ? 'bg-indigo-100 text-indigo-700'
+                  : 'text-slate-400 hover:bg-slate-50'
+              }`}
+              title="Thư viện"
+            >
+              <ImageIcon className="w-5 h-5" />
+            </button>
+            <button
               onClick={() => setActiveTab('timeline')}
               className={`p-2 rounded-lg transition-all ${
                 activeTab === 'timeline'
                   ? 'bg-indigo-100 text-indigo-700'
                   : 'text-slate-400 hover:bg-slate-50'
               }`}
+              title="Dòng thời gian"
             >
               <Clock className="w-5 h-5" />
             </button>
@@ -296,6 +423,7 @@ function AppContent() {
                   ? 'bg-indigo-100 text-indigo-700'
                   : 'text-slate-400 hover:bg-slate-50'
               }`}
+              title="Thống kê"
             >
               <PieChart className="w-5 h-5" />
             </button>
@@ -315,14 +443,42 @@ function AppContent() {
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-4 space-y-6">
-          <SmartUploader
-            onAddResult={handleAddResult}
-            isProcessing={isProcessing}
-            setIsProcessing={setIsProcessing}
-          />
+          {/* Gallery View */}
+          {activeTab === 'gallery' && (
+            <>
+              <SmartUploader
+                onAddResult={handleAddResult}
+                isProcessing={isProcessing}
+                setIsProcessing={setIsProcessing}
+                tripId={tripId}
+                userId={user?.uid || 'guest'}
+              />
+              <FilterChips
+                filter={filter}
+                setFilter={setFilter}
+                categoryFilter={categoryFilter}
+                setCategoryFilter={setCategoryFilter}
+              />
+              <PhotoGrid
+                items={filteredData}
+                onSelect={setSelectedItem}
+              />
+            </>
+          )}
 
-          {/* Timeline */}
-          {activeTab === 'timeline' && (
+          {/* Timeline & Dashboard Views */}
+          {activeTab !== 'gallery' && (
+            <>
+              <SmartUploader
+                onAddResult={handleAddResult}
+                isProcessing={isProcessing}
+                setIsProcessing={setIsProcessing}
+                tripId={tripId}
+                userId={user?.uid || 'guest'}
+              />
+
+              {/* Timeline */}
+              {activeTab === 'timeline' && (
             <div className="space-y-6 relative pl-4 border-l-2 border-indigo-100 ml-2">
               {[...data].length === 0 ? (
                 <div className="text-center py-8 text-slate-400">
@@ -484,46 +640,19 @@ function AppContent() {
               </div>
             </div>
           )}
+            </>
+          )}
         </div>
       </div>
 
-      {/* Modal */}
+      {/* Photo Detail Modal */}
       {selectedItem && (
-        <div className="fixed inset-0 z-50 bg-black/90 flex flex-col items-center justify-center p-4">
-          <button
-            onClick={() => setSelectedItem(null)}
-            className="absolute top-4 right-4 p-2 bg-white/20 rounded-full text-white hover:bg-white/30"
-          >
-            <X className="w-6 h-6" />
-          </button>
-
-          <div className="w-full max-w-lg bg-black flex items-center justify-center rounded-lg overflow-hidden">
-            {selectedItem.imageUrl ? (
-              <img
-                src={selectedItem.imageUrl}
-                className="max-w-full max-h-[70vh] object-contain"
-                alt="Full view"
-              />
-            ) : (
-              <div className="text-white/50 flex flex-col items-center">
-                <ImageIcon className="w-16 h-16 mb-2" />
-                <span>Không có ảnh</span>
-              </div>
-            )}
-          </div>
-
-          <div className="mt-4 text-center text-white">
-            <h3 className="text-lg font-bold">{selectedItem.name}</h3>
-            {selectedItem.type === 'expense' && (
-              <p className="text-2xl font-black text-yellow-400 mt-1">
-                {selectedItem.amount.toLocaleString('vi-VN')} k
-              </p>
-            )}
-            <p className="text-sm text-white/60 mt-2 max-w-xs mx-auto">
-              {selectedItem.description || formatDate(selectedItem.timestamp)}
-            </p>
-          </div>
-        </div>
+        <PhotoDetailModal
+          item={selectedItem}
+          allItems={data}
+          isOpen={!!selectedItem}
+          onClose={() => setSelectedItem(null)}
+        />
       )}
     </div>
   );

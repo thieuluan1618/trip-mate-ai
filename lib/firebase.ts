@@ -21,7 +21,7 @@ let storage: any;
 if (typeof window !== 'undefined') {
   app = initializeApp(firebaseConfig);
   auth = getAuth(app);
-  db = getFirestore(app);
+  db = getFirestore(app, 'trip-mate-ai');
   storage = getStorage(app);
 }
 

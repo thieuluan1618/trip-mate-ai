@@ -50,9 +50,39 @@ Build a high-performance, mobile-first web application that acts as both a **fin
 
 ---
 
-### B. Timeline Feed (Social View)
+### B. Pinterest-Style Gallery (Main View)
 
-Display items (expenses & memories) in **reverse chronological order**.
+**Primary View:** Masonry grid layout showcasing all trip images in a visually stunning Pinterest-style layout.
+
+**UI Components:**
+- **Masonry Grid:** 2-3 columns with varied image heights (waterfall layout)
+- **Photo Cards:**
+  - Full-width image with rounded corners
+  - Overlay info on hover/tap (amount, category, timestamp)
+  - Expense indicator (💰) or Memory indicator (📸)
+- **Filter Chips:** All | Bills Only | Memories Only | By Category
+- **Detail Modal:** Instagram-style photo viewer with swipe navigation
+
+**Smart Bulk Upload:**
+- **Multi-select:** User selects 10-50 photos at once
+- **AI Batch Processing:** Analyzes all images in parallel queue
+- **Bill Grouping Logic:**
+  - Groups photos by content (bills vs memories)
+  - Clusters bills by time proximity (within 5-10 minutes = same expense)
+  - Example: 3 bill photos at 19:05, 19:07, 19:10 → Single expense record with 3 images
+- **Memory Handling:** Non-bill photos → Saved as standalone memories or attached to nearest expense
+
+**Optimization:**
+- Lazy loading images below fold
+- Image compression (max 500KB, 1920px)
+- Firebase Storage CDN for fast delivery
+- Progressive image loading (blur placeholder)
+
+---
+
+### C. Timeline Feed (Alternative View)
+
+Display items (expenses & memories) in **reverse chronological order** (accessible via tab switch).
 
 **UI Components:**
 - **Vertical timeline** with line connector
@@ -112,7 +142,8 @@ Display items (expenses & memories) in **reverse chronological order**.
   "category": "enum (food | transport | stay | other | scenery | memory)",
   "type": "enum (expense | memory)",
   "storagePath": "string (Firebase Storage reference)",
-  "imageUrl": "string (Public signed URL)",
+  "imageUrl": "string (Public signed URL - primary image)",
+  "images": "array<string> (Multiple image URLs for grouped bills)",
   "timestamp": "Timestamp",
   "description": "string (AI-generated caption)",
   "createdBy": "string (userId)"
@@ -124,7 +155,8 @@ Display items (expenses & memories) in **reverse chronological order**.
 ## 🎨 UI/UX Design System
 
 ### Layout
-- **Header:** Sticky, gradient background (Indigo → Violet), tab switcher (Timeline vs. Dashboard)
+- **Header:** Sticky, gradient background (Indigo → Violet), tab switcher (Gallery vs. Timeline vs. Dashboard)
+- **Gallery View:** Pinterest-style masonry grid (primary view)
 - **Animations:** framer-motion for smooth, hardware-accelerated transitions
 
 ### Color Palette
@@ -174,7 +206,17 @@ Display items (expenses & memories) in **reverse chronological order**.
 
 ### Phase 2: Core Features
 - [ ] Implement Smart Uploader with Gemini integration
-- [ ] Build Timeline Feed UI
+- [ ] Build Pinterest-Style Gallery (main view)
+  - [ ] Masonry grid layout (2-3 columns)
+  - [ ] Photo cards with overlay info
+  - [ ] Filter chips (All/Bills/Memories/Category)
+  - [ ] Photo detail modal with swipe navigation
+- [ ] Implement Smart Bulk Upload
+  - [ ] Multi-file selection (10-50 photos)
+  - [ ] Batch AI processing queue
+  - [ ] Bill grouping by time proximity (5-10 min threshold)
+  - [ ] Support multiple images per expense
+- [ ] Build Timeline Feed UI (alternative view)
 - [ ] Create Financial Dashboard
 
 ### Phase 3: Polish & Deploy
