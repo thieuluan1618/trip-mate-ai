@@ -476,7 +476,7 @@ function AppContent() {
             >
               <PieChart className="w-5 h-5" />
             </button>
-            {user ? (
+            {/* {user ? (
               <button
                 onClick={logOut}
                 className="p-2 rounded-lg transition-all text-slate-400 hover:bg-slate-50"
@@ -486,7 +486,8 @@ function AppContent() {
               </button>
             ) : (
               <AuthButton />
-            )}
+            )} */}
+            {!user && <AuthButton />}
           </div>
         </div>
 
@@ -511,6 +512,7 @@ function AppContent() {
               <PhotoGrid
                 items={filteredData}
                 onSelect={setSelectedItem}
+                loading={loadingData}
               />
             </>
           )}

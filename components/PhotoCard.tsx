@@ -30,9 +30,10 @@ const categoryLabels: Record<string, string> = {
 
 export const PhotoCard: React.FC<PhotoCardProps> = ({ item, onClick }) => {
   const imageUrl = item.imageUrl || item.videoUrl;
-  if (!imageUrl) return null;
-
+  const [imageLoaded, setImageLoaded] = React.useState(false);
   const isVideo = !!item.videoUrl;
+
+  if (!imageUrl) return null;
 
   return (
     <div
@@ -52,12 +53,20 @@ export const PhotoCard: React.FC<PhotoCardProps> = ({ item, onClick }) => {
           }}
         />
       ) : (
-        <img
-          src={item.imageUrl}
-          alt={item.name}
-          className="w-full h-auto object-cover"
-          loading="lazy"
-        />
+        <>
+          {/* Blur placeholder while loading */}
+          {!imageLoaded && (
+            <div className="absolute inset-0 bg-slate-200 animate-pulse" />
+          )}
+          <img
+            src={item.imageUrl}
+            alt={item.name}
+            className="w-full h-auto object-cover transition-opacity duration-300"
+            loading="lazy"
+            onLoad={() => setImageLoaded(true)}
+            style={{ opacity: imageLoaded ? 1 : 0 }}
+          />
+        </>
       )}
 
       {/* Overlay (shows on hover/tap) */}
