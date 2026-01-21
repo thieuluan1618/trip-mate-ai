@@ -37,7 +37,7 @@ export const PhotoCard: React.FC<PhotoCardProps> = ({ item, onClick }) => {
 
   return (
     <div
-      className="relative break-inside-avoid mb-3 rounded-xl overflow-hidden group cursor-pointer shadow-sm hover:shadow-lg transition-shadow"
+      className="relative break-inside-avoid mb-2 sm:mb-3 rounded-xl overflow-hidden group cursor-pointer shadow-sm hover:shadow-lg active:scale-98 transition-all duration-200"
       onClick={onClick}
     >
       {/* Image or Video */}
@@ -46,6 +46,7 @@ export const PhotoCard: React.FC<PhotoCardProps> = ({ item, onClick }) => {
           src={item.videoUrl}
           className="w-full h-auto object-cover"
           muted
+          playsInline
           onMouseEnter={(e) => e.currentTarget.play()}
           onMouseLeave={(e) => {
             e.currentTarget.pause();
@@ -69,28 +70,28 @@ export const PhotoCard: React.FC<PhotoCardProps> = ({ item, onClick }) => {
         </>
       )}
 
-      {/* Overlay (shows on hover/tap) */}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-        <div className="absolute bottom-0 left-0 right-0 p-3 text-white">
+      {/* Overlay (shows on hover/tap) - optimized for touch */}
+      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 group-active:opacity-100 transition-opacity duration-200">
+        <div className="absolute bottom-0 left-0 right-0 p-2 sm:p-3 text-white">
           {/* Name */}
-          <h3 className="font-bold text-sm mb-1 line-clamp-1">{item.name}</h3>
+          <h3 className="font-bold text-xs sm:text-sm mb-1 line-clamp-1">{item.name}</h3>
 
           {/* Expense Info */}
           {item.type === 'expense' ? (
-            <div className="flex items-center gap-2">
-              <span className="text-lg font-bold text-yellow-300">
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              <span className="text-sm sm:text-lg font-bold text-yellow-300">
                 -{item.amount.toLocaleString('vi-VN')}k
               </span>
-              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${categoryColors[item.category]}`}>
+              <span className={`text-[9px] sm:text-[10px] font-bold px-1.5 sm:px-2 py-0.5 rounded-full ${categoryColors[item.category]}`}>
                 {categoryLabels[item.category]}
               </span>
             </div>
           ) : (
-            <div className="flex items-center gap-2">
-              <span className="text-xs opacity-90">
-                {isVideo ? '🎬 Video' : '📸 Kỷ niệm'}
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              <span className="text-[10px] sm:text-xs opacity-90">
+                {isVideo ? '🎬' : '📸'} {isVideo ? 'Video' : 'Kỷ niệm'}
               </span>
-              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${categoryColors[item.category]}`}>
+              <span className={`text-[9px] sm:text-[10px] font-bold px-1.5 sm:px-2 py-0.5 rounded-full ${categoryColors[item.category]}`}>
                 {categoryLabels[item.category]}
               </span>
             </div>
@@ -98,7 +99,7 @@ export const PhotoCard: React.FC<PhotoCardProps> = ({ item, onClick }) => {
 
           {/* Multiple Images Indicator */}
           {item.images && item.images.length > 1 && (
-            <div className="text-[10px] opacity-75 mt-1">
+            <div className="text-[9px] sm:text-[10px] opacity-75 mt-0.5">
               📸 {item.images.length} ảnh
             </div>
           )}
@@ -106,9 +107,9 @@ export const PhotoCard: React.FC<PhotoCardProps> = ({ item, onClick }) => {
       </div>
 
       {/* Type Indicator (always visible) */}
-      <div className="absolute top-2 right-2">
+      <div className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2">
         <div
-          className={`px-2 py-1 rounded-full text-[10px] font-bold shadow-sm ${
+          className={`px-1.5 py-0.5 sm:px-2 sm:py-1 rounded-full text-[9px] sm:text-[10px] font-bold shadow-sm ${
             item.type === 'expense'
               ? 'bg-indigo-500 text-white'
               : isVideo
@@ -123,8 +124,8 @@ export const PhotoCard: React.FC<PhotoCardProps> = ({ item, onClick }) => {
       {/* Video Play Button Indicator */}
       {isVideo && (
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-          <div className="w-12 h-12 bg-white/30 backdrop-blur-sm rounded-full flex items-center justify-center">
-            <div className="w-0 h-0 border-t-8 border-t-transparent border-l-12 border-l-white border-b-8 border-b-transparent ml-1" />
+          <div className="w-10 h-10 sm:w-12 sm:h-12 bg-white/30 backdrop-blur-sm rounded-full flex items-center justify-center">
+            <div className="w-0 h-0 border-t-6 sm:border-t-8 border-t-transparent border-l-10 sm:border-l-12 border-l-white border-b-6 sm:border-b-8 border-b-transparent ml-0.5 sm:ml-1" />
           </div>
         </div>
       )}

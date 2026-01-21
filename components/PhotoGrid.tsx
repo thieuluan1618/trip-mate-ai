@@ -52,7 +52,7 @@ export const PhotoGrid: React.FC<PhotoGridProps> = ({ items, onSelect, loading =
 
   if (loading) {
     return (
-      <div className="columns-2 md:columns-3 gap-3 space-y-3">
+      <div className="columns-2 gap-2 sm:gap-3 space-y-2 sm:space-y-3">
         {Array.from({ length: 6 }).map((_, idx) => (
           <PhotoCardSkeleton key={idx} />
         ))}
@@ -62,7 +62,7 @@ export const PhotoGrid: React.FC<PhotoGridProps> = ({ items, onSelect, loading =
 
   if (items.length === 0) {
     return (
-      <div className="text-center py-12 text-slate-400">
+      <div className="text-center py-12 text-slate-400 px-4">
         <Clock className="w-12 h-12 mx-auto mb-3 opacity-50" />
         <p className="text-sm">Chưa có ảnh nào</p>
         <p className="text-xs mt-1">Hãy thêm bill hoặc ảnh kỷ niệm nhé! 📸</p>
@@ -71,7 +71,7 @@ export const PhotoGrid: React.FC<PhotoGridProps> = ({ items, onSelect, loading =
   }
 
   return (
-    <div className="columns-2 md:columns-3 gap-3 space-y-3">
+    <div className="columns-2 gap-2 sm:columns-2 md:columns-3 sm:gap-3 space-y-2 sm:space-y-3">
       {visibleItems.map((item) => (
         <PhotoCard key={item.id} item={item} onClick={() => onSelect(item)} />
       ))}
@@ -85,12 +85,12 @@ export const PhotoGrid: React.FC<PhotoGridProps> = ({ items, onSelect, loading =
         </>
       )}
 
-      {/* Observer target */}
+      {/* Observer target - positioned before end */}
       <div ref={observerTarget} className="w-full h-1" />
 
       {/* End of list indicator */}
       {!hasMore && items.length > ITEMS_PER_PAGE && (
-        <div className="col-span-full text-center py-4 text-xs text-slate-400">
+        <div className="col-span-full text-center py-4 text-xs text-slate-400 px-2">
           Đã hiển thị tất cả ảnh
         </div>
       )}

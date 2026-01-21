@@ -147,7 +147,7 @@ export const PhotoDetailModal: React.FC<PhotoDetailModalProps> = ({
           </div>
 
           {/* Image/Video Container */}
-          <div className="flex-1 flex items-center justify-center p-4" onClick={(e) => e.stopPropagation()}>
+          <div className="flex-1 flex items-center justify-center p-2 sm:p-4" onClick={(e) => e.stopPropagation()}>
             {isVideo ? (
               <motion.video
                 key={currentMediaUrl}
@@ -156,7 +156,7 @@ export const PhotoDetailModal: React.FC<PhotoDetailModalProps> = ({
                 transition={{ duration: 0.2 }}
                 src={currentMediaUrl}
                 controls
-                className="max-w-full max-h-[70vh] object-contain rounded-lg shadow-2xl"
+                className="max-w-full max-h-[60vh] sm:max-h-[70vh] w-full object-contain rounded-lg shadow-2xl"
               />
             ) : (
               <motion.img
@@ -166,21 +166,21 @@ export const PhotoDetailModal: React.FC<PhotoDetailModalProps> = ({
                 transition={{ duration: 0.2 }}
                 src={currentMediaUrl}
                 alt={currentItem.name}
-                className="max-w-full max-h-[70vh] object-contain rounded-lg shadow-2xl"
+                className="max-w-full max-h-[60vh] sm:max-h-[70vh] w-full object-contain rounded-lg shadow-2xl"
               />
             )}
           </div>
 
-          {/* Navigation Arrows */}
+          {/* Navigation Arrows - larger touch targets on mobile */}
           {currentMedia.length > 1 || currentIndex > 0 ? (
             <button
               onClick={(e) => {
                 e.stopPropagation();
                 handlePrev();
               }}
-              className="absolute left-4 top-1/2 -translate-y-1/2 p-3 bg-white/20 backdrop-blur-sm rounded-full text-white hover:bg-white/30 transition-colors"
+              className="absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 p-2 sm:p-3 bg-white/20 backdrop-blur-sm rounded-full text-white hover:bg-white/30 active:scale-110 transition-all duration-200"
             >
-              <ChevronLeft className="w-6 h-6" />
+              <ChevronLeft className="w-5 h-5 sm:w-6 sm:h-6" />
             </button>
           ) : null}
           {currentMedia.length > 1 || currentIndex < allItems.length - 1 ? (
@@ -189,15 +189,15 @@ export const PhotoDetailModal: React.FC<PhotoDetailModalProps> = ({
                 e.stopPropagation();
                 handleNext();
               }}
-              className="absolute right-4 top-1/2 -translate-y-1/2 p-3 bg-white/20 backdrop-blur-sm rounded-full text-white hover:bg-white/30 transition-colors"
+              className="absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 p-2 sm:p-3 bg-white/20 backdrop-blur-sm rounded-full text-white hover:bg-white/30 active:scale-110 transition-all duration-200"
             >
-              <ChevronRight className="w-6 h-6" />
+              <ChevronRight className="w-5 h-5 sm:w-6 sm:h-6" />
             </button>
           ) : null}
 
           {/* Image Dots Indicator */}
           {currentMedia.length > 1 && (
-            <div className="absolute bottom-32 left-1/2 -translate-x-1/2 flex gap-2">
+            <div className="absolute bottom-24 sm:bottom-32 left-1/2 -translate-x-1/2 flex gap-1.5 sm:gap-2">
               {currentMedia.map((_, idx) => (
                 <button
                   key={idx}
@@ -205,8 +205,8 @@ export const PhotoDetailModal: React.FC<PhotoDetailModalProps> = ({
                     e.stopPropagation();
                     setCurrentImageIndex(idx);
                   }}
-                  className={`w-2 h-2 rounded-full transition-all ${
-                    idx === currentImageIndex ? 'bg-white w-6' : 'bg-white/50'
+                  className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full transition-all ${
+                    idx === currentImageIndex ? 'bg-white w-4 sm:w-6' : 'bg-white/50'
                   }`}
                 />
               ))}
