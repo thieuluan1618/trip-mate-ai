@@ -1,7 +1,10 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { TripItem } from '@/types';
+
+// Simple image cache at component level
+const imageCache = new Set<string>();
 
 interface PhotoCardProps {
   item: TripItem;
@@ -32,6 +35,17 @@ export const PhotoCard: React.FC<PhotoCardProps> = ({ item, onClick }) => {
   const imageUrl = item.imageUrl || item.videoUrl;
   const [imageLoaded, setImageLoaded] = React.useState(false);
   const isVideo = !!item.videoUrl;
+
+  // Preload image when component mounts
+  useEffect(() => {
+    if (imageUrl && !isVideo && !imageCache.has(imageUrl)) {
+      const img = new Image();
+      img.src = imageUrl;
+      img.onload = () => {
+        imageCache.add(imageUrl);
+      };
+    }
+  }, [imageUrl, isVideo]);
 
   if (!imageUrl) return null;
 

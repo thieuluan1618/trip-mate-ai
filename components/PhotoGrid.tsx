@@ -5,6 +5,7 @@ import { TripItem } from '@/types';
 import { PhotoCard } from './PhotoCard';
 import { PhotoCardSkeleton } from './PhotoCardSkeleton';
 import { Clock } from 'lucide-react';
+import { useImageCache } from '@/lib/useImageCache';
 
 interface PhotoGridProps {
   items: TripItem[];
@@ -21,6 +22,10 @@ export const PhotoGrid: React.FC<PhotoGridProps> = ({ items, onSelect, loading =
 
   const visibleItems = items.slice(0, visibleCount);
   const hasMore = visibleCount < items.length;
+
+  // Use image caching hook - preload all items (not just visible)
+  // This ensures images are cached when switching filters
+  useImageCache(items);
 
   // Intersection Observer for infinite scroll
   useEffect(() => {
