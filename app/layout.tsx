@@ -22,8 +22,7 @@ export const metadata: Metadata = {
   authors: [{ name: "Trip Mate Team" }],
   keywords: ["travel", "expense tracker", "AI assistant", "trip planning", "travel memories"],
   icons: {
-    icon: "/icon.png",
-    apple: "/apple-icon.png",
+    icon: "/icon.svg",
   },
   manifest: "/manifest.json",
 };
