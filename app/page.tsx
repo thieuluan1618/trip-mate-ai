@@ -439,16 +439,16 @@ function AppContent() {
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-slate-800 pb-20">
-      <div className="max-w-md md:max-w-2xl lg:max-w-4xl mx-auto min-h-screen bg-white shadow-xl overflow-hidden flex flex-col">
+      <div className="max-w-md md:max-w-2xl lg:max-w-4xl mx-auto min-h-screen bg-white shadow-xl flex flex-col">
         {/* Header */}
         <div className="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-slate-100 p-4 flex justify-between items-center">
           <div>
             <h1 className="text-xl font-black bg-gradient-to-r from-indigo-600 to-violet-600 bg-clip-text text-transparent">
               {tripName || 'Trip Mate AI'}
             </h1>
-            <p className="text-xs text-slate-500 font-medium">
+            {/* <p className="text-xs text-slate-500 font-medium">
               {user ? user.displayName : '👤 Chưa đăng nhập'}
-            </p>
+            </p> */}
           </div>
           <div className="flex gap-2">
             <button
@@ -510,12 +510,14 @@ function AppContent() {
                 tripId={tripId}
                 userId={user?.uid || 'guest'}
               />
-              <FilterChips
-                filter={filter}
-                setFilter={setFilter}
-                categoryFilter={categoryFilter}
-                setCategoryFilter={setCategoryFilter}
-              />
+              <div className="sticky top-14 z-30 bg-white/95 backdrop-blur-sm py-2 -mx-4 px-4 border-b border-slate-100">
+                <FilterChips
+                  filter={filter}
+                  setFilter={setFilter}
+                  categoryFilter={categoryFilter}
+                  setCategoryFilter={setCategoryFilter}
+                />
+              </div>
               <PhotoGrid
                 items={filteredData}
                 onSelect={setSelectedItem}

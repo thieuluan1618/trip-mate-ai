@@ -1,0 +1,65 @@
+.simplebar-scrollbar::before {
+  background-color: rgba(99, 102, 241, 0.5);
+  border-radius: 4px;
+}
+
+.simplebar-scrollbar.simplebar-visible::before {
+  background-color: rgba(99, 102, 241, 0.7);
+}
+
+.simplebar-track.simplebar-vertical {
+  width: 8px;
+}
+
+.simplebar-scrollbar.simplebar-vertical {
+  right: 2px;
+  width: 6px;
+}
+
+.simplebar-track.simplebar-horizontal {
+  height: 8px;
+}
+
+.simplebar-scrollbar.simplebar-horizontal {
+  bottom: 2px;
+  height: 6px;
+}
+
+/* Hover effects */
+.simplebar-scrollbar::before {
+  transition: background-color 0.2s ease;
+}
+
+.simplebar-scrollbar:hover::before {
+  background-color: rgba(99, 102, 241, 0.9);
+}
+
+/* Make scrollbar more visible on touch devices */
+@media (hover: none) {
+  .simplebar-scrollbar::before {
+    background-color: rgba(99, 102, 241, 0.6);
+  }
+
+  .simplebar-scrollbar.simplebar-visible::before {
+    background-color: rgba(99, 102, 241, 0.8);
+  }
+}
+
+/* Hide horizontal scrollbar for filter chips - make it more subtle */
+.filter-chips-scroll .simplebar-track.simplebar-horizontal {
+  height: 4px;
+}
+
+.filter-chips-scroll .simplebar-scrollbar.simplebar-horizontal {
+  height: 3px;
+  bottom: 1px;
+}
+
+.filter-chips-scroll .simplebar-scrollbar::before {
+  background-color: rgba(99, 102, 241, 0.3);
+}
+
+.filter-chips-scroll .simplebar-scrollbar.simplebar-visible::before {
+  background-color: rgba(99, 102, 241, 0.5);
+}
+
