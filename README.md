@@ -1,6 +1,8 @@
-# 🧳 Trip Mate AI
+# 🧳 Trip Mate
 
-Smart travel expense tracker & memory timeline for group trips. Upload bills or photos, AI auto-categorizes everything.
+**Trip Mate - AI Travel Companion**
+
+Your smart AI-powered travel assistant for managing expenses, memories, and group trips. Upload bills or photos, and AI auto-categorizes everything.
 
 ![Next.js](https://img.shields.io/badge/Next.js-16+-black?logo=next.js)
 ![Firebase](https://img.shields.io/badge/Firebase-Firestore-orange?logo=firebase)
@@ -46,7 +48,8 @@ Copy `.env.example` to `.env.local` and fill in:
 | `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET` | Firebase Storage bucket |
 | `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID` | Firebase sender ID |
 | `NEXT_PUBLIC_FIREBASE_APP_ID` | Firebase app ID |
-| `NEXT_PUBLIC_GEMINI_API_KEY` | Google Gemini API key |
+| `NEXT_PUBLIC_GEMINI_API_KEY` | Google Gemini API key (client-side, optional) |
+| `GEMINI_API_KEY` | Google Gemini API key (server-side, for API routes) |
 
 ## 🛠️ Tech Stack
 
