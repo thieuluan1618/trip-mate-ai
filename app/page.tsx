@@ -431,7 +431,7 @@ function AppContent() {
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-slate-800 pb-20">
-      <div className="max-w-md mx-auto min-h-screen bg-white shadow-xl overflow-hidden flex flex-col">
+      <div className="max-w-md md:max-w-2xl lg:max-w-4xl mx-auto min-h-screen bg-white shadow-xl overflow-hidden flex flex-col">
         {/* Header */}
         <div className="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-slate-100 p-4 flex justify-between items-center">
           <div>
