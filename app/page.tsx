@@ -23,9 +23,7 @@ import {
   LogIn,
 } from 'lucide-react';
 import { useEffect } from 'react';
-import { analyzeImage, analyzeTripExpenses } from '@/lib/gemini';
 import { compressImage, fileToBase64 } from '@/lib/imageUtils';
-import { uploadFileToStorage, generateStoragePath } from '@/lib/storageUtils';
 import { appVoice, getRandomMessage, getBudgetStatusWithVibe } from '@/lib/appVoice';
 import { TripItem, TabType, CategoryInfo } from '@/types';
 import { useAuth } from '@/lib/authContext';
@@ -36,6 +34,13 @@ import { PhotoGrid } from '@/components/PhotoGrid';
 import { PhotoDetailModal } from '@/components/PhotoDetailModal';
 import { FilterChips, FilterType, CategoryType } from '@/components/FilterChips';
 import { saveTripItem, subscribeTripItems, getOrCreateDefaultTrip, getUserTrips } from '@/lib/firestoreUtils';
+import {
+  analyzeImage as analyzeImageAPI,
+  analyzeTripExpenses,
+  uploadFile,
+  saveTripItem as saveTripItemAPI,
+  deleteTripItem,
+} from '@/lib/apiClient';
 
 const categories: Record<string, CategoryInfo> = {
   all: { label: 'Tất cả', icon: Wallet, color: 'bg-gray-100 text-gray-800' },
@@ -91,13 +96,11 @@ const AuthButton = () => {
 };
 
 const SmartUploader = ({
-  onAddResult,
   isProcessing,
   setIsProcessing,
   tripId,
   userId,
 }: {
-  onAddResult: (item: TripItem) => void;
   isProcessing: boolean;
   setIsProcessing: (val: boolean) => void;
   tripId: string;
@@ -149,19 +152,17 @@ const SmartUploader = ({
         const isVideo = file.type.startsWith('video/');
 
         if (isVideo) {
-          // Handle video - NO AI analysis, just upload
-          const storagePath = generateStoragePath(tripId, file.name);
-          const downloadUrl = await uploadFileToStorage(file, storagePath);
+          // Handle video - NO AI analysis, just upload via API
+          const uploaded = await uploadFile(file, tripId);
 
-          // Create video item without AI
-          const newItem: TripItem = {
-            id: Date.now().toString() + '-' + Math.random().toString(36).substring(2, 11),
+          // Create video item without AI (no ID - Firestore will generate)
+          const newItem: Omit<TripItem, 'id'> = {
             tripId,
             name: file.name.replace(/\.[^/.]+$/, ''), // Remove extension
             amount: 0,
             category: 'video',
             type: 'memory',
-            videoUrl: downloadUrl,
+            videoUrl: uploaded.url,
             timestamp: new Date(),
             description: 'Video kỷ niệm 🎬',
             createdBy: userId,
@@ -169,25 +170,23 @@ const SmartUploader = ({
             updatedAt: new Date(),
           };
 
-          onAddResult(newItem);
+          await saveTripItem(tripId, newItem);
           successCount++;
         } else {
-          // Handle image with AI analysis
+          // Handle image with AI analysis via API
           const compressedFile = await compressImage(file);
           const base64Data = await fileToBase64(compressedFile);
-          const aiData = await analyzeImage(base64Data, compressedFile.type);
+          const aiData = await analyzeImageAPI(base64Data, compressedFile.type);
 
-          const storagePath = generateStoragePath(tripId, compressedFile.name);
-          const downloadUrl = await uploadFileToStorage(compressedFile, storagePath);
+          const uploaded = await uploadFile(compressedFile, tripId);
 
-          const newItem: TripItem = {
-            id: Date.now().toString() + '-' + Math.random().toString(36).substring(2, 11),
+          const newItem: Omit<TripItem, 'id'> = {
             tripId,
             name: aiData.name,
             amount: aiData.amount,
             category: aiData.category,
             type: aiData.type,
-            imageUrl: downloadUrl,
+            imageUrl: uploaded.url,
             timestamp: new Date(),
             description: aiData.description,
             createdBy: userId,
@@ -195,7 +194,7 @@ const SmartUploader = ({
             updatedAt: new Date(),
           };
 
-          onAddResult(newItem);
+          await saveTripItem(tripId, newItem);
           successCount++;
         }
       } catch (error) {
@@ -221,21 +220,20 @@ const SmartUploader = ({
     if (!previewItem || !pendingFile) return;
     setIsSaving(true);
     try {
-      // 1. Upload image to Firebase Storage
-      const storagePath = generateStoragePath(tripId, pendingFile.name);
-      const downloadUrl = await uploadFileToStorage(pendingFile, storagePath);
+      // 1. Upload image to Firebase Storage via API
+      const uploaded = await uploadFile(pendingFile, tripId);
 
-      // 2. Create final item with Storage URL
-      const finalItem: TripItem = {
-        ...previewItem,
-        imageUrl: downloadUrl,
+      // 2. Create final item with Storage URL (no ID - Firestore generates it)
+      const { id: _id, previewUrl: _previewUrl, ...itemData } = previewItem;
+      const finalItem: Omit<TripItem, 'id'> = {
+        ...itemData,
+        imageUrl: uploaded.url,
       };
-      delete (finalItem as any).previewUrl;
 
       // 3. Save to Firestore
-      onAddResult(finalItem);
+      await saveTripItem(tripId, finalItem);
       showToast(getRandomMessage(appVoice.successMessages), 'success', 3000);
-      
+
       // 4. Clean up
       setPreviewItem(null);
       setPendingFile(null);
@@ -319,6 +317,7 @@ function AppContent() {
   const [aiAnalysis, setAiAnalysis] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [tripId, setTripId] = useState<string>('trip-1');
+  const [tripName, setTripName] = useState<string>('');
   const [loadingData, setLoadingData] = useState(true);
 
   // Initialize trip and load data on mount
@@ -326,20 +325,23 @@ function AppContent() {
     const initializeTrip = async () => {
       try {
         const userId = user?.uid || 'guest';
-        
+
         // Try to get existing trips first
         const trips = await getUserTrips(userId);
         let id: string;
-        
+        let name: string = 'Trip Mate AI';
+
         if (trips.length > 0) {
           // Use the most recent trip
           id = trips[0].id;
+          name = trips[0].tripName;
         } else {
           // Create default trip if none exists
           id = await getOrCreateDefaultTrip(userId);
         }
-        
+
         setTripId(id);
+        setTripName(name);
 
         // Subscribe to real-time updates
         const unsubscribe = subscribeTripItems(id, (items) => {
@@ -398,15 +400,21 @@ function AppContent() {
     return { total, byCategory, expenses };
   }, [data]);
 
-  const handleAddResult = async (newItem: TripItem) => {
+  const handleDeleteItem = async (itemId: string) => {
     try {
-      // Save to Firestore (userId already set in SmartUploader)
-      await saveTripItem(tripId, newItem);
+      // Delete item via API (also deletes associated files from Storage)
+      await deleteTripItem(tripId, itemId);
 
       // Firestore listener will update the data automatically
+      showToast('Đã xóa thành công!', 'success', 2000);
+
+      // Close the modal if the deleted item is currently selected
+      if (selectedItem?.id === itemId) {
+        setSelectedItem(null);
+      }
     } catch (error) {
-      console.error('Failed to add result:', error);
-      showToast(getRandomMessage(appVoice.uploadErrors), 'error');
+      console.error('Failed to delete item:', error);
+      showToast('Không thể xóa. Thử lại sau!', 'error');
     }
   };
 
@@ -436,7 +444,7 @@ function AppContent() {
         <div className="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-slate-100 p-4 flex justify-between items-center">
           <div>
             <h1 className="text-xl font-black bg-gradient-to-r from-indigo-600 to-violet-600 bg-clip-text text-transparent">
-              Trip Mate AI
+              {tripName || 'Trip Mate AI'}
             </h1>
             <p className="text-xs text-slate-500 font-medium">
               {user ? user.displayName : '👤 Chưa đăng nhập'}
@@ -487,7 +495,7 @@ function AppContent() {
             ) : (
               <AuthButton />
             )} */}
-            {!user && <AuthButton />}
+            {/* {!user && <AuthButton />} */}
           </div>
         </div>
 
@@ -497,8 +505,7 @@ function AppContent() {
           {activeTab === 'gallery' && (
             <>
               <SmartUploader
-                onAddResult={handleAddResult}
-                isProcessing={isProcessing}
+                                isProcessing={isProcessing}
                 setIsProcessing={setIsProcessing}
                 tripId={tripId}
                 userId={user?.uid || 'guest'}
@@ -521,8 +528,7 @@ function AppContent() {
           {activeTab !== 'gallery' && (
             <>
               <SmartUploader
-                onAddResult={handleAddResult}
-                isProcessing={isProcessing}
+                                isProcessing={isProcessing}
                 setIsProcessing={setIsProcessing}
                 tripId={tripId}
                 userId={user?.uid || 'guest'}
@@ -703,6 +709,7 @@ function AppContent() {
           allItems={data}
           isOpen={!!selectedItem}
           onClose={() => setSelectedItem(null)}
+          onDelete={handleDeleteItem}
         />
       )}
     </div>

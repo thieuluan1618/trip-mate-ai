@@ -34,7 +34,16 @@ trip-mate-ai/
 │   ├── page.tsx                 # Main app (Client Component)
 │   ├── seed/page.tsx            # Data seeding UI
 │   ├── layout.tsx               # Root layout
-│   └── globals.css              # Global styles
+│   ├── globals.css              # Global styles
+│   └── api/                     # Next.js API Routes
+│       ├── ai/                  # AI endpoints (Gemini proxy)
+│       │   ├── analyze-image/route.ts
+│       │   └── analyze-expenses/route.ts
+│       ├── trips/               # Trip CRUD endpoints
+│       │   ├── route.ts         # GET all, POST create
+│       │   └── [tripId]/        # GET/PATCH/DELETE single trip
+│       │       └── items/route.ts # GET/POST trip items
+│       └── upload/route.ts      # File upload/delete to Storage
 ├── components/
 │   ├── AuthGuard.tsx            # Auth wrapper component
 │   ├── PreviewModal.tsx         # Upload preview modal
@@ -44,8 +53,9 @@ trip-mate-ai/
 ├── lib/
 │   ├── firebase.ts              # Firebase config & initialization
 │   ├── firestoreUtils.ts        # Firestore CRUD operations
-│   ├── storageUtils.ts          # Firebase Storage uploads
-│   ├── gemini.ts                # Gemini AI integration
+│   ├── storageUtils.ts          # Firebase Storage utilities
+│   ├── gemini.ts                # Gemini AI (legacy, direct calls)
+│   ├── apiClient.ts             # API client utilities
 │   ├── imageUtils.ts            # Image compression & encoding
 │   ├── appVoice.ts              # App personality & messages
 │   ├── authContext.tsx          # Auth context provider
@@ -148,19 +158,32 @@ trips/{tripId}/items/{itemId}
 
 ## 🎨 Core Modules
 
-### `lib/firestoreUtils.ts`
+### `lib/apiClient.ts` - API Client (Recommended)
 ```typescript
-// Trip operations
+// AI Operations (via API routes - more secure)
+analyzeImage(base64, mimeType)    // AI image analysis (proxied)
+analyzeTripExpenses(expenses)     // AI expense analysis (proxied)
+
+// Trip Operations (via API routes)
 getUserTrips(userId)              // Get all user's trips
 getTripById(tripId)               // Get single trip
 createTrip(trip)                  // Create new trip
 updateTrip(tripId, data)          // Update trip
 deleteTrip(tripId)                // Delete trip + items
-subscribeUserTrips(userId, cb)    // Real-time trip list
 
-// Item operations
+// Item Operations (via API routes)
+getTripItems(tripId)              // Load all items
 saveTripItem(tripId, item)        // Save expense/memory
-loadTripItems(tripId)             // Load all items
+
+// Storage Operations (via API routes)
+uploadFile(file, tripId)          // Upload file to Firebase Storage
+deleteFile(path)                  // Delete file from Firebase Storage
+```
+
+### `lib/firestoreUtils.ts` - Direct Firestore (Realtime only)
+```typescript
+// Real-time subscriptions (still use direct Firebase)
+subscribeUserTrips(userId, cb)    // Real-time trip list
 subscribeTripItems(tripId, cb)    // Real-time items
 getOrCreateDefaultTrip(userId)    // Get/create default trip
 seedTripData(userId, info, items) // Seed sample data
@@ -168,14 +191,14 @@ seedTripData(userId, info, items) // Seed sample data
 
 ### `lib/storageUtils.ts`
 ```typescript
-uploadFileToStorage(file, path)   // Upload to Firebase Storage
-generateStoragePath(tripId, name) // Generate unique path
+generateStoragePath(tripId, name) // Generate unique path (utility)
 ```
 
-### `lib/gemini.ts`
+### `lib/gemini.ts` - Legacy (Direct calls)
 ```typescript
-analyzeImage(base64, mimeType)    // AI image analysis
-analyzeTripExpenses(expenses)     // AI expense analysis
+// Use apiClient.ts instead for security (hides API key)
+analyzeImage(base64, mimeType)    // AI image analysis (direct)
+analyzeTripExpenses(expenses)     // AI expense analysis (direct)
 ```
 
 ### `lib/appVoice.ts`

@@ -1,4 +1,4 @@
-import { initializeApp } from 'firebase/app';
+import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
@@ -12,18 +12,18 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
-// Only initialize Firebase on client-side (not during build)
-let app: any;
-let auth: any;
-let db: any;
-let storage: any;
+// Initialize Firebase (singleton pattern for both client and server)
+const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 
+// Initialize Auth (client-side only)
+let auth: any;
 if (typeof window !== 'undefined') {
-  app = initializeApp(firebaseConfig);
   auth = getAuth(app);
-  db = getFirestore(app, 'trip-mate-ai');
-  storage = getStorage(app);
 }
+
+// Initialize Firestore and Storage (works on both client and server)
+const db = getFirestore(app, 'trip-mate-ai');
+const storage = getStorage(app);
 
 export { auth, db, storage };
 export default app;
