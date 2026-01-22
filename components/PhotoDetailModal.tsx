@@ -113,11 +113,12 @@ export const PhotoDetailModal: React.FC<PhotoDetailModalProps> = ({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-50 bg-black flex flex-col"
+          className="fixed inset-0 z-[9999] bg-black flex flex-col !m-0 !max-w-none"
           onClick={onClose}
+          style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}
         >
-          {/* Header */}
-          <div className="flex justify-between items-center p-4 bg-gradient-to-b from-black/50 to-transparent" onClick={(e) => e.stopPropagation()}>
+          {/* Header - positioned absolutely over the image */}
+          <div className="absolute top-0 left-0 right-0 z-10 flex justify-between items-center p-4 bg-gradient-to-b from-black/70 via-black/20 to-transparent" onClick={(e) => e.stopPropagation()}>
             <div className="flex gap-2">
               {onEdit && (
                 <button
@@ -146,8 +147,8 @@ export const PhotoDetailModal: React.FC<PhotoDetailModalProps> = ({
             </button>
           </div>
 
-          {/* Image/Video Container */}
-          <div className="flex-1 flex items-center justify-center p-2 sm:p-4" onClick={(e) => e.stopPropagation()}>
+          {/* Image/Video Container - full screen */}
+          <div className="absolute inset-0 flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
             {isVideo ? (
               <motion.video
                 key={currentMediaUrl}
@@ -156,7 +157,7 @@ export const PhotoDetailModal: React.FC<PhotoDetailModalProps> = ({
                 transition={{ duration: 0.2 }}
                 src={currentMediaUrl}
                 controls
-                className="max-w-full max-h-[60vh] sm:max-h-[70vh] w-full object-contain rounded-lg shadow-2xl"
+                className="w-full h-full object-contain"
               />
             ) : (
               <motion.img
@@ -166,7 +167,7 @@ export const PhotoDetailModal: React.FC<PhotoDetailModalProps> = ({
                 transition={{ duration: 0.2 }}
                 src={currentMediaUrl}
                 alt={currentItem.name}
-                className="max-w-full max-h-[60vh] sm:max-h-[70vh] w-full object-contain rounded-lg shadow-2xl"
+                className="max-w-full max-h-full object-contain"
               />
             )}
           </div>
@@ -213,28 +214,28 @@ export const PhotoDetailModal: React.FC<PhotoDetailModalProps> = ({
             </div>
           )}
 
-          {/* Info Panel */}
-          <div className="bg-gradient-to-t from-black via-black/80 to-transparent p-6 text-white" onClick={(e) => e.stopPropagation()}>
+          {/* Info Panel - absolutely positioned at bottom */}
+          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black via-black/80 to-transparent p-4 sm:p-6 text-white pointer-events-none" onClick={(e) => e.stopPropagation()}>
             <div className="max-w-lg mx-auto">
-              <h3 className="text-xl font-bold mb-2">{currentItem.name}</h3>
+              <h3 className="text-lg sm:text-xl font-bold mb-1 sm:mb-2">{currentItem.name}</h3>
 
-              <div className="flex items-center gap-3 mb-3">
+              <div className="flex items-center gap-2 sm:gap-3 mb-2 sm:mb-3">
                 {currentItem.type === 'expense' ? (
                   <>
-                    <span className="text-3xl font-black text-yellow-400">
+                    <span className="text-2xl sm:text-3xl font-black text-yellow-400">
                       -{currentItem.amount.toLocaleString('vi-VN')}k
                     </span>
                     <span
-                      className={`px-3 py-1 rounded-full text-xs font-bold ${categoryColors[currentItem.category]}`}
+                      className={`px-2 sm:px-3 py-1 rounded-full text-xs font-bold ${categoryColors[currentItem.category]}`}
                     >
                       {categoryLabels[currentItem.category]}
                     </span>
                   </>
                 ) : (
                   <>
-                    <span className="text-sm opacity-90">📸 Kỷ niệm</span>
+                    <span className="text-xs sm:text-sm opacity-90">📸 Kỷ niệm</span>
                     <span
-                      className={`px-3 py-1 rounded-full text-xs font-bold ${categoryColors[currentItem.category]}`}
+                      className={`px-2 sm:px-3 py-1 rounded-full text-xs font-bold ${categoryColors[currentItem.category]}`}
                     >
                       {categoryLabels[currentItem.category]}
                     </span>
@@ -243,17 +244,16 @@ export const PhotoDetailModal: React.FC<PhotoDetailModalProps> = ({
               </div>
 
               {currentItem.description && (
-                <p className="text-sm opacity-80 italic">"{currentItem.description}"</p>
+                <p className="text-xs sm:text-sm opacity-80 italic mb-1">&ldquo;{currentItem.description}&rdquo;</p>
               )}
 
-              {currentMedia.length > 1 && (
-                <div className="mt-2 text-xs opacity-60">
-                  {isVideo ? 'Video' : 'Ảnh'} {currentImageIndex + 1} / {currentMedia.length}
-                </div>
-              )}
-
-              <div className="mt-2 text-xs opacity-60">
-                {new Date(currentItem.timestamp).toLocaleString('vi-VN')}
+              <div className="flex items-center gap-2 text-xs opacity-60">
+                {currentMedia.length > 1 && (
+                  <span>
+                    {isVideo ? 'Video' : 'Ảnh'} {currentImageIndex + 1} / {currentMedia.length}
+                  </span>
+                )}
+                <span>• {new Date(currentItem.timestamp).toLocaleString('vi-VN')}</span>
               </div>
             </div>
           </div>
