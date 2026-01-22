@@ -1,0 +1,35 @@
+{
+  "name": "Trip Mate - AI Travel Companion",
+  "short_name": "Trip Mate",
+  "description": "Your smart AI-powered travel assistant for managing expenses, memories, and group trips",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#4f46e5",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/icon.png",
+      "sizes": "32x32",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/apple-icon.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ],
+  "categories": ["travel", "productivity"],
+  "scope": "/",
+  "shortcuts": [
+    {
+      "name": "New Trip",
+      "short_name": "New Trip",
+      "description": "Create a new trip",
+      "url": "/?action=new",
+      "icons": [{ "src": "/icon.png", "sizes": "32x32" }]
+    }
+  ]
+}

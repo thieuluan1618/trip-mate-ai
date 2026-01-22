@@ -16,8 +16,16 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Trip Mate AI - Travel Expense & Memory Manager",
-  description: "Smart travel expense tracker & memory timeline for group trips",
+  title: "Trip Mate - AI Travel Companion",
+  description: "Your smart AI-powered travel assistant for managing expenses, memories, and group trips",
+  applicationName: "Trip Mate",
+  authors: [{ name: "Trip Mate Team" }],
+  keywords: ["travel", "expense tracker", "AI assistant", "trip planning", "travel memories"],
+  icons: {
+    icon: "/icon.png",
+    apple: "/apple-icon.png",
+  },
+  manifest: "/manifest.json",
 };
 
 export default function RootLayout({
