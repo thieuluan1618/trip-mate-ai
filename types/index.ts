@@ -20,8 +20,11 @@ export interface TripItem {
   type: 'expense' | 'memory';
   storagePath?: string; // Firebase Storage path
   imageUrl?: string; // Public signed URL (primary image/video)
+  thumbnailUrl?: string; // Thumbnail URL for grid display (optimized)
+  blurDataUrl?: string; // Base64 blur placeholder for instant loading
   videoUrl?: string; // For videos
   images?: string[]; // Multiple image URLs for grouped bills
+  thumbnails?: string[]; // Thumbnail URLs for multiple images
   timestamp: Date;
   description: string;
   createdBy: string; // userId

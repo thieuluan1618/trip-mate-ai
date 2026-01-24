@@ -1,10 +1,8 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import React from 'react';
+import Image from 'next/image';
 import { TripItem } from '@/types';
-
-// Simple image cache at component level
-const imageCache = new Set<string>();
 
 interface PhotoCardProps {
   item: TripItem;
@@ -31,23 +29,14 @@ const categoryLabels: Record<string, string> = {
   video: 'Video',
 };
 
+const DEFAULT_BLUR_DATA_URL = 'data:image/webp;base64,UklGRlYAAABXRUJQVlA4IEoAAADQAQCdASoQABAAAgA0JYgCdAEO/hOMAAD++O3u7293d3d3d3dv/6Pf/o9/+j3/6Pf/o9/+kAAAAA==';
+
 export const PhotoCard: React.FC<PhotoCardProps> = ({ item, onClick }) => {
-  const imageUrl = item.imageUrl || item.videoUrl;
-  const [imageLoaded, setImageLoaded] = React.useState(false);
   const isVideo = !!item.videoUrl;
+  const displayUrl = item.thumbnailUrl || item.imageUrl || item.videoUrl;
+  const blurDataUrl = item.blurDataUrl || DEFAULT_BLUR_DATA_URL;
 
-  // Preload image when component mounts
-  useEffect(() => {
-    if (imageUrl && !isVideo && !imageCache.has(imageUrl)) {
-      const img = new Image();
-      img.src = imageUrl;
-      img.onload = () => {
-        imageCache.add(imageUrl);
-      };
-    }
-  }, [imageUrl, isVideo]);
-
-  if (!imageUrl) return null;
+  if (!displayUrl) return null;
 
   return (
     <div
@@ -68,20 +57,20 @@ export const PhotoCard: React.FC<PhotoCardProps> = ({ item, onClick }) => {
           }}
         />
       ) : (
-        <>
-          {/* Blur placeholder while loading */}
-          {!imageLoaded && (
-            <div className="absolute inset-0 bg-slate-200 animate-pulse" />
-          )}
-          <img
-            src={item.imageUrl}
+        <div className="relative aspect-auto">
+          <Image
+            src={displayUrl}
             alt={item.name}
-            className="w-full h-auto object-cover transition-opacity duration-300"
+            width={400}
+            height={400}
+            sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, 25vw"
+            className="w-full h-auto object-cover"
+            placeholder="blur"
+            blurDataURL={blurDataUrl}
             loading="lazy"
-            onLoad={() => setImageLoaded(true)}
-            style={{ opacity: imageLoaded ? 1 : 0 }}
+            quality={80}
           />
-        </>
+        </div>
       )}
 
       {/* Overlay (shows on hover/tap) - optimized for touch */}

@@ -1,46 +1,42 @@
 'use client';
 
-import React, { useState, useMemo, useRef } from 'react';
-import {
-  Wallet,
-  Users,
-  Car,
-  Home,
-  Utensils,
-  Gift,
-  PieChart,
-  Receipt,
-  X,
-  Image as ImageIcon,
-  Sparkles,
-  Loader2,
-  Clock,
-  Camera,
-  MapPin,
-  Heart,
-  LogOut,
-  Video,
-  LogIn,
-} from 'lucide-react';
-import { useEffect } from 'react';
-import { compressImage, fileToBase64 } from '@/lib/imageUtils';
-import { appVoice, getRandomMessage, getBudgetStatusWithVibe } from '@/lib/appVoice';
-import { TripItem, TabType, CategoryInfo } from '@/types';
-import { useAuth } from '@/lib/authContext';
 import { AuthGuard } from '@/components/AuthGuard';
-import { useToast } from '@/components/Toast';
-import { PreviewModal } from '@/components/PreviewModal';
-import { PhotoGrid } from '@/components/PhotoGrid';
+import { CategoryType, FilterChips, FilterType } from '@/components/FilterChips';
 import { PhotoDetailModal } from '@/components/PhotoDetailModal';
-import { FilterChips, FilterType, CategoryType } from '@/components/FilterChips';
-import { saveTripItem, subscribeTripItems, getOrCreateDefaultTrip, getUserTrips } from '@/lib/firestoreUtils';
+import { PhotoGrid } from '@/components/PhotoGrid';
+import { PreviewModal } from '@/components/PreviewModal';
+import { useToast } from '@/components/Toast';
 import {
   analyzeImage as analyzeImageAPI,
   analyzeTripExpenses,
-  uploadFile,
-  saveTripItem as saveTripItemAPI,
   deleteTripItem,
+  uploadFile
 } from '@/lib/apiClient';
+import { appVoice, getRandomMessage } from '@/lib/appVoice';
+import { useAuth } from '@/lib/authContext';
+import { getOrCreateDefaultTrip, getUserTrips, saveTripItem, subscribeTripItems } from '@/lib/firestoreUtils';
+import { compressImage, fileToBase64 } from '@/lib/imageUtils';
+import { CategoryInfo, TabType, TripItem } from '@/types';
+import {
+  Camera,
+  Car,
+  Clock,
+  Gift,
+  Heart,
+  Home,
+  Image as ImageIcon,
+  Loader2,
+  LogIn,
+  MapPin,
+  PieChart,
+  Sparkles,
+  Users,
+  Utensils,
+  Video,
+  Wallet,
+  X
+} from 'lucide-react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 
 const categories: Record<string, CategoryInfo> = {
   all: { label: 'Tất cả', icon: Wallet, color: 'bg-gray-100 text-gray-800' },
@@ -52,35 +48,6 @@ const categories: Record<string, CategoryInfo> = {
   memory: { label: 'Kỷ niệm', icon: Heart, color: 'bg-rose-100 text-rose-600' },
   video: { label: 'Video', icon: Video, color: 'bg-indigo-100 text-indigo-700' },
 };
-
-const mockData: TripItem[] = [
-  {
-    id: '1',
-    tripId: 'trip-1',
-    name: 'Nhậu 1 (Lẩu bò Thiên Kim)',
-    amount: 502,
-    category: 'food',
-    type: 'expense',
-    timestamp: new Date(Date.now() - 70 * 3600000),
-    description: 'Nhậu lẩu bò',
-    createdBy: 'user-1',
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  },
-  {
-    id: '2',
-    tripId: 'trip-1',
-    name: 'Trà sữa',
-    amount: 254,
-    category: 'food',
-    type: 'expense',
-    timestamp: new Date(Date.now() - 68 * 3600000),
-    description: 'Trà sữa ngon',
-    createdBy: 'user-1',
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  },
-];
 
 const AuthButton = () => {
   const { signIn } = useAuth();
@@ -117,9 +84,9 @@ const SmartUploader = ({
     const files = event.target.files;
     if (!files || files.length === 0) return;
 
-    // File size validation (50MB for images, 100MB for videos)
+    // File size validation (50MB for images, 500MB for videos)
     const MAX_IMAGE_SIZE = 50 * 1024 * 1024; // 50MB
-    const MAX_VIDEO_SIZE = 100 * 1024 * 1024; // 100MB
+    const MAX_VIDEO_SIZE = 500 * 1024 * 1024; // 500MB
 
     const oversizedFiles = Array.from(files).filter(file => {
       if (file.type.startsWith('image/')) {
@@ -131,7 +98,7 @@ const SmartUploader = ({
     });
 
     if (oversizedFiles.length > 0) {
-      showToast(`File quá lớn! Giới hạn 50MB/ảnh, 100MB/video.`, 'error');
+      showToast(`File quá lớn! Giới hạn 50MB/ảnh, 500MB/video.`, 'error');
       if (fileInputRef.current) fileInputRef.current.value = '';
       return;
     }
@@ -187,6 +154,8 @@ const SmartUploader = ({
             category: aiData.category,
             type: aiData.type,
             imageUrl: uploaded.url,
+            thumbnailUrl: uploaded.thumbnailUrl,
+            blurDataUrl: uploaded.blurDataUrl,
             timestamp: new Date(),
             description: aiData.description,
             createdBy: userId,
@@ -228,6 +197,8 @@ const SmartUploader = ({
       const finalItem: Omit<TripItem, 'id'> = {
         ...itemData,
         imageUrl: uploaded.url,
+        thumbnailUrl: uploaded.thumbnailUrl,
+        blurDataUrl: uploaded.blurDataUrl,
       };
 
       // 3. Save to Firestore

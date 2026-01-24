@@ -180,6 +180,8 @@ export const saveTripItem = async (
     category: string;
     type: string;
     imageUrl?: string;
+    thumbnailUrl?: string;
+    blurDataUrl?: string;
     timestamp?: Date | string;
     description?: string;
     createdBy: string;
@@ -218,13 +220,17 @@ export const deleteTripItem = async (tripId: string, itemId: string) => {
 
 /**
  * Upload file to Firebase Storage via API
+ * Returns original URL, thumbnail URL, and blur placeholder
  */
 export const uploadFile = async (
   file: File,
   tripId: string
 ): Promise<{
   url: string;
+  thumbnailUrl: string;
+  blurDataUrl: string;
   path: string;
+  thumbnailPath: string;
   name: string;
   size: number;
   type: string;
