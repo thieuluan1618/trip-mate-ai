@@ -109,20 +109,14 @@ export const PhotoCard: React.FC<PhotoCardProps> = ({ item, onClick }) => {
         </div>
       </div>
 
-      {/* Type Indicator (always visible) */}
-      <div className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2">
-        <div
-          className={`px-1.5 py-0.5 sm:px-2 sm:py-1 rounded-full text-[9px] sm:text-[10px] font-bold shadow-sm ${
-            item.type === 'expense'
-              ? 'bg-indigo-500 text-white'
-              : isVideo
-              ? 'bg-purple-500 text-white'
-              : 'bg-rose-500 text-white'
-          }`}
-        >
-          {item.type === 'expense' ? '💰' : isVideo ? '🎬' : '📸'}
+      {/* Type Indicator (always visible) - only show for expenses */}
+      {item.type === 'expense' && (
+        <div className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2">
+          <div className="px-1.5 py-0.5 sm:px-2 sm:py-1 rounded-full text-[9px] sm:text-[10px] font-bold shadow-sm bg-indigo-500 text-white">
+            💰
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Video Play Button Indicator */}
       {isVideo && (

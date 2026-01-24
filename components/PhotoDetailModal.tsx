@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
+import Image from 'next/image';
 import { X, ChevronLeft, ChevronRight, Edit2, Trash2 } from 'lucide-react';
 import { TripItem } from '@/types';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -160,15 +161,23 @@ export const PhotoDetailModal: React.FC<PhotoDetailModalProps> = ({
                 className="w-full h-full object-contain"
               />
             ) : (
-              <motion.img
+              <motion.div
                 key={currentMediaUrl}
                 initial={{ scale: 0.9, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 transition={{ duration: 0.2 }}
-                src={currentMediaUrl}
-                alt={currentItem.name}
-                className="max-w-full max-h-full object-contain"
-              />
+                className="relative w-full h-full"
+              >
+                <Image
+                  src={currentMediaUrl || ''}
+                  alt={currentItem.name}
+                  fill
+                  className="object-contain"
+                  sizes="100vw"
+                  quality={90}
+                  priority
+                />
+              </motion.div>
             )}
           </div>
 
