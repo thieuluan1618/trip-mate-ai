@@ -13,6 +13,7 @@ interface PhotoDetailModalProps {
   onClose: () => void;
   onEdit?: (item: TripItem) => void;
   onDelete?: (itemId: string) => void;
+  onNavigate?: (item: TripItem) => void;
 }
 
 const categoryColors: Record<string, string> = {
@@ -42,6 +43,7 @@ export const PhotoDetailModal: React.FC<PhotoDetailModalProps> = ({
   onClose,
   onEdit,
   onDelete,
+  onNavigate,
 }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
@@ -88,8 +90,10 @@ export const PhotoDetailModal: React.FC<PhotoDetailModalProps> = ({
     if (currentMedia.length > 1 && currentImageIndex > 0) {
       setCurrentImageIndex(currentImageIndex - 1);
     } else if (currentIndex > 0) {
-      setCurrentIndex(currentIndex - 1);
+      const newIndex = currentIndex - 1;
+      setCurrentIndex(newIndex);
       setCurrentImageIndex(0);
+      onNavigate?.(allItems[newIndex]);
     }
   };
 
@@ -97,8 +101,10 @@ export const PhotoDetailModal: React.FC<PhotoDetailModalProps> = ({
     if (currentMedia.length > 1 && currentImageIndex < currentMedia.length - 1) {
       setCurrentImageIndex(currentImageIndex + 1);
     } else if (currentIndex < allItems.length - 1) {
-      setCurrentIndex(currentIndex + 1);
+      const newIndex = currentIndex + 1;
+      setCurrentIndex(newIndex);
       setCurrentImageIndex(0);
+      onNavigate?.(allItems[newIndex]);
     }
   };
 

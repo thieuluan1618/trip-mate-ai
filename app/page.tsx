@@ -38,7 +38,8 @@ import {
   Wallet,
   X
 } from 'lucide-react';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
+import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 
 const categories: Record<string, CategoryInfo> = {
   all: { label: 'Tất cả', icon: Wallet, color: 'bg-gray-100 text-gray-800' },
@@ -280,6 +281,8 @@ const SmartUploader = ({
 function AppContent() {
   const { user, logOut } = useAuth();
   const { showToast } = useToast();
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const [data, setData] = useState<TripItem[]>([]);
   const [activeTab, setActiveTab] = useState<TabType>('gallery');
   const [filter, setFilter] = useState<FilterType>('all');
@@ -292,6 +295,26 @@ function AppContent() {
   const [tripId, setTripId] = useState<string>('trip-1');
   const [tripName, setTripName] = useState<string>('');
   const [loadingData, setLoadingData] = useState(true);
+
+  // Sync selected item with URL (use window.history for immediate update)
+  const selectItem = useCallback((item: TripItem | null) => {
+    setSelectedItem(item);
+    const url = item ? `?photo=${item.id}` : '/';
+    window.history.replaceState(null, '', url);
+  }, []);
+
+  // Open photo from URL on initial load only
+  useEffect(() => {
+    const photoId = searchParams.get('photo');
+    if (photoId && data.length > 0) {
+      const item = data.find(d => d.id === photoId);
+      if (item) {
+        setSelectedItem(item);
+      }
+    }
+    // Only run once when data loads
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data.length > 0]);
 
   // Initialize trip and load data on mount
   useEffect(() => {
@@ -383,7 +406,7 @@ function AppContent() {
 
       // Close the modal if the deleted item is currently selected
       if (selectedItem?.id === itemId) {
-        setSelectedItem(null);
+        selectItem(null);
       }
     } catch (error) {
       console.error('Failed to delete item:', error);
@@ -493,7 +516,7 @@ function AppContent() {
               </div>
               <PhotoGrid
                 items={filteredData}
-                onSelect={setSelectedItem}
+                onSelect={selectItem}
                 loading={loadingData}
               />
             </>
@@ -546,7 +569,7 @@ function AppContent() {
                         {item.imageUrl && (
                           <div
                             className="w-16 h-16 shrink-0 rounded-lg bg-slate-100 overflow-hidden cursor-pointer"
-                            onClick={() => setSelectedItem(item)}
+                            onClick={() => selectItem(item)}
                           >
                             <img
                               src={item.imageUrl}
@@ -683,8 +706,9 @@ function AppContent() {
           item={selectedItem}
           allItems={data}
           isOpen={!!selectedItem}
-          onClose={() => setSelectedItem(null)}
+          onClose={() => selectItem(null)}
           onDelete={handleDeleteItem}
+          onNavigate={selectItem}
         />
       )}
     </div>
