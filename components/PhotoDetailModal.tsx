@@ -47,6 +47,7 @@ export const PhotoDetailModal: React.FC<PhotoDetailModalProps> = ({
 }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   // Find current item index in all items
   useEffect(() => {
@@ -117,6 +118,7 @@ export const PhotoDetailModal: React.FC<PhotoDetailModalProps> = ({
     <AnimatePresence>
       {isOpen && (
         <motion.div
+          key="photo-modal"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -138,7 +140,7 @@ export const PhotoDetailModal: React.FC<PhotoDetailModalProps> = ({
               )}
               {onDelete && (
                 <button
-                  onClick={() => onDelete(currentItem.id)}
+                  onClick={() => setShowDeleteConfirm(true)}
                   className="p-2 bg-white/20 backdrop-blur-sm rounded-full text-white hover:bg-red-500/80 transition-colors"
                   title="Xóa"
                 >
@@ -272,6 +274,56 @@ export const PhotoDetailModal: React.FC<PhotoDetailModalProps> = ({
               </div>
             </div>
           </div>
+        </motion.div>
+      )}
+
+      {/* Delete Confirmation Dialog */}
+      {showDeleteConfirm && (
+        <motion.div
+          key="delete-confirm"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/50 p-4"
+          onClick={() => setShowDeleteConfirm(false)}
+        >
+          <motion.div
+            initial={{ scale: 0.95, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.95, opacity: 0 }}
+            className="bg-white rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="p-5 pb-0">
+              <div className="w-12 h-12 mx-auto mb-4 rounded-full bg-red-100 flex items-center justify-center">
+                <Trash2 className="w-6 h-6 text-red-500" />
+              </div>
+              <h3 className="text-lg font-bold text-slate-800 text-center">Xác nhận xóa?</h3>
+              <p className="text-sm text-slate-500 text-center mt-2">
+                Bạn có chắc muốn xóa ảnh này không? Hành động này không thể hoàn tác.
+              </p>
+            </div>
+            
+            {/* Buttons */}
+            <div className="p-5 flex gap-3">
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                className="flex-1 px-4 py-3 rounded-xl border border-slate-200 text-slate-700 font-semibold hover:bg-slate-50 active:scale-98 transition-all"
+              >
+                Hủy
+              </button>
+              <button
+                onClick={() => {
+                  onDelete?.(currentItem.id);
+                  setShowDeleteConfirm(false);
+                }}
+                className="flex-1 px-4 py-3 rounded-xl bg-red-500 text-white font-semibold hover:bg-red-600 active:scale-98 transition-all shadow-lg shadow-red-500/25"
+              >
+                Xóa
+              </button>
+            </div>
+          </motion.div>
         </motion.div>
       )}
     </AnimatePresence>
