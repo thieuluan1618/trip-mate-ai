@@ -24,14 +24,19 @@ const ITEMS_SUBCOLLECTION = 'items';
  * Get all trips for a user
  */
 export const getUserTrips = async (userId: string): Promise<Trip[]> => {
+  console.log('🔍 getUserTrips called with userId:', userId);
   try {
     const tripsRef = collection(db, TRIPS_COLLECTION);
+    console.log('🔍 getUserTrips - tripsRef:', tripsRef.path);
     const q = query(
       tripsRef,
       where('createdBy', '==', userId),
       orderBy('createdAt', 'desc')
     );
+    console.log('🔍 getUserTrips - about to getDocs...');
     const snapshot = await getDocs(q);
+    console.log('🔍 getUserTrips - found trips:', snapshot.size);
+    snapshot.docs.forEach((doc, i) => console.log(`  Trip ${i + 1}:`, doc.id, doc.data().tripName));
 
     return snapshot.docs.map((doc) => ({
       id: doc.id,
@@ -258,16 +263,30 @@ export const subscribeTripItems = (
  * Create or get default trip for guest user
  */
 export const getOrCreateDefaultTrip = async (userId: string): Promise<string> => {
+  console.log('🔍 getOrCreateDefaultTrip called with userId:', userId);
+  console.log('🔍 db object:', db);
+  console.log('🔍 TRIPS_COLLECTION:', TRIPS_COLLECTION);
   try {
     const tripsRef = collection(db, TRIPS_COLLECTION);
+    console.log('🔍 tripsRef created:', tripsRef.path);
+    
+    // DEBUG: Query ALL trips first (no filters)
+    console.log('🔍 About to call getDocs...');
+    const allTrips = await getDocs(tripsRef);
+    console.log('🔍 getDocs returned');
+    console.log('📊 Total trips in DB (no filter):', allTrips.size);
+    allTrips.docs.forEach(d => console.log('  - Trip:', d.id, d.data().tripName, 'by:', d.data().createdBy));
+    
     const q = query(
       tripsRef,
-      where('createdBy', '==', userId),
+      // where('createdBy', '==', userId),
       where('tripName', '==', 'My Trip')
     );
     const snapshot = await getDocs(q);
-
+    console.log('📊 Filtered trips (tripName=My Trip):', snapshot.size);
+    
     if (snapshot.size > 0) {
+      console.log('✅ Found existing trip:', snapshot.docs[0].id);
       return snapshot.docs[0].id;
     }
 
@@ -285,7 +304,7 @@ export const getOrCreateDefaultTrip = async (userId: string): Promise<string> =>
 
     return docRef.id;
   } catch (error) {
-    console.error('Failed to get or create default trip:', error);
+    console.error('❌ Failed to get or create default trip:', error);
     throw error;
   }
 };

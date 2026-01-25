@@ -10,11 +10,13 @@ import {
   analyzeImage as analyzeImageAPI,
   analyzeTripExpenses,
   deleteTripItem,
+  getUserTrips,
+  saveTripItem,
   uploadFile
 } from '@/lib/apiClient';
 import { appVoice, getRandomMessage } from '@/lib/appVoice';
 import { useAuth } from '@/lib/authContext';
-import { getOrCreateDefaultTrip, getUserTrips, saveTripItem, subscribeTripItems } from '@/lib/firestoreUtils';
+import { getOrCreateDefaultTrip, subscribeTripItems } from '@/lib/firestoreUtils';
 import { compressImage, fileToBase64 } from '@/lib/imageUtils';
 import { CategoryInfo, TabType, TripItem } from '@/types';
 import {
@@ -295,7 +297,7 @@ function AppContent() {
   useEffect(() => {
     const initializeTrip = async () => {
       try {
-        const userId = user?.uid || 'guest';
+        const userId = 'guest';
 
         // Try to get existing trips first
         const trips = await getUserTrips(userId);

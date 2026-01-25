@@ -20,7 +20,7 @@
 | **Icons** | lucide-react |
 | **AI Integration** | google-generative-ai (Gemini 2.5 Flash) |
 | **Backend** | Firebase (Auth, Firestore, Storage) |
-| **Image Compression** | browser-image-compression |
+| **Image Compression** | browser-image-compression, sharp |
 | **Animations** | framer-motion |
 | **Deployment** | Vercel |
 
@@ -61,7 +61,8 @@ trip-mate-ai/
 │   ├── authContext.tsx          # Auth context provider
 │   └── seedData.ts              # Sample trip data
 ├── scripts/
-│   └── seed.ts                  # CLI seed script
+│   ├── seed.ts                  # CLI seed script
+│   └── migrate-thumbnails.ts    # Thumbnail migration script
 ├── types/
 │   └── index.ts                 # TypeScript type definitions
 ├── public/                      # Static assets
@@ -107,6 +108,11 @@ npm run lint         # ESLint checks
 
 # Seed data
 npx dotenv -e .env.local -- npx tsx scripts/seed.ts
+
+# Migrate thumbnails for existing images
+npx dotenv -e .env.local -- npx tsx scripts/migrate-thumbnails.ts
+npx dotenv -e .env.local -- npx tsx scripts/migrate-thumbnails.ts --dry-run  # Preview
+npx dotenv -e .env.local -- npx tsx scripts/migrate-thumbnails.ts --limit=5  # Test with 5
 ```
 
 ---
@@ -146,7 +152,10 @@ trips/{tripId}/items/{itemId}
   ├── amount: number
   ├── category: 'food' | 'transport' | 'stay' | 'other' | 'scenery' | 'memory'
   ├── type: 'expense' | 'memory'
-  ├── imageUrl: string (Firebase Storage URL)
+  ├── imageUrl: string (Firebase Storage URL - full resolution)
+  ├── thumbnailUrl: string (400px optimized thumbnail)
+  ├── blurDataUrl: string (16px base64 blur placeholder)
+  ├── videoUrl: string (for video uploads)
   ├── timestamp: Timestamp
   ├── description: string
   ├── createdBy: string
@@ -213,8 +222,10 @@ Randomized Vietnamese messages:
 ## 🎯 Current Features (Phase 2)
 
 ✅ **Smart Uploader**
-- Upload image (bill or memory)
-- Client-side compression (500KB max)
+- Upload image (bill or memory) up to 50MB
+- Upload video up to 500MB
+- Server-side thumbnail generation (400px WebP)
+- Blur placeholder for instant loading
 - Gemini Vision analysis
 - Preview modal with editing
 - Upload to Firebase Storage
@@ -315,4 +326,4 @@ Add all `.env.local` variables in Vercel dashboard → Settings → Environment 
 
 ---
 
-**Last Updated:** January 22, 2026
+**Last Updated:** January 24, 2026
