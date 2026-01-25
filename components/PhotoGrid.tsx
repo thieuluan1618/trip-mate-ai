@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
+import Masonry from 'react-masonry-css';
 import { TripItem } from '@/types';
 import { PhotoCard } from './PhotoCard';
 import { PhotoCardSkeleton } from './PhotoCardSkeleton';
@@ -14,6 +15,11 @@ interface PhotoGridProps {
 }
 
 const ITEMS_PER_PAGE = 20;
+
+const breakpointColumns = {
+  default: 3,
+  768: 2,
+};
 
 export const PhotoGrid: React.FC<PhotoGridProps> = ({ items, onSelect, loading = false }) => {
   const [visibleCount, setVisibleCount] = useState(ITEMS_PER_PAGE);
@@ -57,11 +63,15 @@ export const PhotoGrid: React.FC<PhotoGridProps> = ({ items, onSelect, loading =
 
   if (loading) {
     return (
-      <div className="columns-2 gap-2 sm:gap-3 space-y-2 sm:space-y-3">
+      <Masonry
+        breakpointCols={breakpointColumns}
+        className="flex gap-2 sm:gap-3 -ml-2 sm:-ml-3"
+        columnClassName="pl-2 sm:pl-3 bg-clip-padding"
+      >
         {Array.from({ length: 6 }).map((_, idx) => (
           <PhotoCardSkeleton key={idx} />
         ))}
-      </div>
+      </Masonry>
     );
   }
 
@@ -76,29 +86,39 @@ export const PhotoGrid: React.FC<PhotoGridProps> = ({ items, onSelect, loading =
   }
 
   return (
-    <div className="columns-2 gap-2 sm:columns-2 md:columns-3 sm:gap-3 space-y-2 sm:space-y-3">
-      {visibleItems.map((item) => (
-        <PhotoCard key={item.id} item={item} onClick={() => onSelect(item)} />
-      ))}
+    <>
+      <Masonry
+        breakpointCols={breakpointColumns}
+        className="flex gap-2 sm:gap-3 -ml-2 sm:-ml-3"
+        columnClassName="pl-2 sm:pl-3 bg-clip-padding"
+      >
+        {visibleItems.map((item) => (
+          <div key={item.id} className="mb-2 sm:mb-3">
+            <PhotoCard item={item} onClick={() => onSelect(item)} />
+          </div>
+        ))}
 
-      {/* Loading indicator for infinite scroll */}
-      {isLoadingMore && hasMore && (
-        <>
-          {Array.from({ length: 3 }).map((_, idx) => (
-            <PhotoCardSkeleton key={`loading-${idx}`} />
-          ))}
-        </>
-      )}
+        {/* Loading indicator for infinite scroll */}
+        {isLoadingMore && hasMore && (
+          <>
+            {Array.from({ length: 3 }).map((_, idx) => (
+              <div key={`loading-${idx}`} className="mb-2 sm:mb-3">
+                <PhotoCardSkeleton />
+              </div>
+            ))}
+          </>
+        )}
+      </Masonry>
 
-      {/* Observer target - positioned before end */}
+      {/* Observer target */}
       <div ref={observerTarget} className="w-full h-1" />
 
       {/* End of list indicator */}
       {!hasMore && items.length > ITEMS_PER_PAGE && (
-        <div className="col-span-full text-center py-4 text-xs text-slate-400 px-2">
+        <div className="text-center py-4 text-xs text-slate-400 px-2">
           Đã hiển thị tất cả ảnh
         </div>
       )}
-    </div>
+    </>
   );
 };
