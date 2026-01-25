@@ -17,7 +17,7 @@ import {
 import { appVoice, getRandomMessage } from '@/lib/appVoice';
 import { useAuth } from '@/lib/authContext';
 import { getOrCreateDefaultTrip, subscribeTripItems } from '@/lib/firestoreUtils';
-import { compressImage, fileToBase64 } from '@/lib/imageUtils';
+import { compressImage, fileToBase64, getImageDate } from '@/lib/imageUtils';
 import { CategoryInfo, TabType, TripItem } from '@/types';
 import {
   Camera,
@@ -124,6 +124,9 @@ const SmartUploader = ({
         if (isVideo) {
           // Handle video - NO AI analysis, just upload via API
           const uploaded = await uploadFile(file, tripId);
+          
+          // Use file's lastModified date or current date
+          const videoDate = file.lastModified ? new Date(file.lastModified) : new Date();
 
           // Create video item without AI (no ID - Firestore will generate)
           const newItem: Omit<TripItem, 'id'> = {
@@ -133,7 +136,7 @@ const SmartUploader = ({
             category: 'video',
             type: 'memory',
             videoUrl: uploaded.url,
-            timestamp: new Date(),
+            timestamp: videoDate,
             description: 'Video kỷ niệm 🎬',
             createdBy: userId,
             createdAt: new Date(),
@@ -144,6 +147,9 @@ const SmartUploader = ({
           successCount++;
         } else {
           // Handle image with AI analysis via API
+          // Extract EXIF date before compression (compression may strip EXIF)
+          const photoDate = await getImageDate(file);
+          
           const compressedFile = await compressImage(file);
           const base64Data = await fileToBase64(compressedFile);
           const aiData = await analyzeImageAPI(base64Data, compressedFile.type);
@@ -159,7 +165,7 @@ const SmartUploader = ({
             imageUrl: uploaded.url,
             thumbnailUrl: uploaded.thumbnailUrl,
             blurDataUrl: uploaded.blurDataUrl,
-            timestamp: new Date(),
+            timestamp: photoDate,
             description: aiData.description,
             createdBy: userId,
             createdAt: new Date(),

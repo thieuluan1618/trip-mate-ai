@@ -1,4 +1,5 @@
 import imageCompression from 'browser-image-compression';
+import exifr from 'exifr';
 
 export const compressImage = async (file: File, options?: {
   maxSizeMB?: number;
@@ -73,4 +74,34 @@ export const fileToBase64 = (file: File): Promise<string> => {
 
 export const fileToPreviewUrl = (file: File): string => {
   return URL.createObjectURL(file);
+};
+
+/**
+ * Extract the original date from image EXIF data
+ * Falls back to file lastModified or current date if no EXIF data
+ */
+export const getImageDate = async (file: File): Promise<Date> => {
+  try {
+    const exif = await exifr.parse(file, {
+      pick: ['DateTimeOriginal', 'CreateDate', 'ModifyDate'],
+    });
+    
+    if (exif?.DateTimeOriginal) {
+      return new Date(exif.DateTimeOriginal);
+    }
+    if (exif?.CreateDate) {
+      return new Date(exif.CreateDate);
+    }
+    if (exif?.ModifyDate) {
+      return new Date(exif.ModifyDate);
+    }
+  } catch (error) {
+    console.warn('Failed to extract EXIF date:', error);
+  }
+  
+  // Fallback to file's lastModified or current date
+  if (file.lastModified) {
+    return new Date(file.lastModified);
+  }
+  return new Date();
 };
