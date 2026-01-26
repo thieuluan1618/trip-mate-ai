@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import Image from 'next/image';
+
 import { X, ChevronLeft, ChevronRight, Edit2, Trash2 } from 'lucide-react';
 import { TripItem } from '@/types';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -49,15 +49,18 @@ export const PhotoDetailModal: React.FC<PhotoDetailModalProps> = ({
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
-  // Find current item index in all items
+  // Filter to only items with media (photo or video)
+  const mediaItems = allItems.filter((i) => i.imageUrl || i.videoUrl);
+
+  // Find current item index in filtered media items
   useEffect(() => {
-    const index = allItems.findIndex((i) => i.id === item.id);
-    setCurrentIndex(index);
-  }, [item.id, allItems]);
+    const index = mediaItems.findIndex((i) => i.id === item.id);
+    setCurrentIndex(index >= 0 ? index : 0);
+  }, [item.id, mediaItems]);
 
   // Get all images for current item
   const getCurrentMedia = useCallback(() => {
-    const currentItem = allItems[currentIndex];
+    const currentItem = mediaItems[currentIndex];
     if (!currentItem) return [];
     // If video, return video URL
     if (currentItem.videoUrl) {
@@ -69,10 +72,43 @@ export const PhotoDetailModal: React.FC<PhotoDetailModalProps> = ({
       return [currentItem.imageUrl, ...images];
     }
     return images;
-  }, [currentIndex, allItems]);
+  }, [currentIndex, mediaItems]);
 
   const currentMedia = getCurrentMedia();
-  const isVideo = allItems[currentIndex]?.videoUrl ? true : false;
+  const isVideo = mediaItems[currentIndex]?.videoUrl ? true : false;
+
+  // Preload adjacent images for smooth navigation
+  useEffect(() => {
+    const preloadImages: string[] = [];
+    
+    // Get prev/next items (2 in each direction)
+    for (let offset = -2; offset <= 2; offset++) {
+      if (offset === 0) continue; // Skip current
+      const idx = currentIndex + offset;
+      if (idx >= 0 && idx < mediaItems.length) {
+        const item = mediaItems[idx];
+        // Preload full image, not thumbnail
+        if (item.imageUrl) {
+          preloadImages.push(item.imageUrl);
+        }
+      }
+    }
+    
+    console.log(`🔄 Preloading ${preloadImages.length} images for index ${currentIndex}`);
+    
+    // Preload using native Image objects (use window.Image to avoid conflict with next/image)
+    preloadImages.forEach((src, i) => {
+      const img = new window.Image();
+      const startTime = performance.now();
+      img.onload = () => {
+        console.log(`✅ Preloaded image ${i + 1}: ${Math.round(performance.now() - startTime)}ms`);
+      };
+      img.onerror = () => {
+        console.log(`❌ Failed to preload image ${i + 1}`);
+      };
+      img.src = src;
+    });
+  }, [currentIndex, mediaItems]);
 
   // Handle keyboard navigation
   useEffect(() => {
@@ -94,22 +130,22 @@ export const PhotoDetailModal: React.FC<PhotoDetailModalProps> = ({
       const newIndex = currentIndex - 1;
       setCurrentIndex(newIndex);
       setCurrentImageIndex(0);
-      onNavigate?.(allItems[newIndex]);
+      onNavigate?.(mediaItems[newIndex]);
     }
   };
 
   const handleNext = () => {
     if (currentMedia.length > 1 && currentImageIndex < currentMedia.length - 1) {
       setCurrentImageIndex(currentImageIndex + 1);
-    } else if (currentIndex < allItems.length - 1) {
+    } else if (currentIndex < mediaItems.length - 1) {
       const newIndex = currentIndex + 1;
       setCurrentIndex(newIndex);
       setCurrentImageIndex(0);
-      onNavigate?.(allItems[newIndex]);
+      onNavigate?.(mediaItems[newIndex]);
     }
   };
 
-  const currentItem = allItems[currentIndex];
+  const currentItem = mediaItems[currentIndex];
   if (!currentItem) return null;
 
   const currentMediaUrl = currentMedia[currentImageIndex] || currentItem.imageUrl || currentItem.videoUrl;
@@ -169,28 +205,20 @@ export const PhotoDetailModal: React.FC<PhotoDetailModalProps> = ({
                 className="w-full h-full object-contain"
               />
             ) : (
-              <motion.div
+              <motion.img
                 key={currentMediaUrl}
                 initial={{ scale: 0.9, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 transition={{ duration: 0.2 }}
-                className="relative w-full h-full"
-              >
-                <Image
-                  src={currentMediaUrl || ''}
-                  alt={currentItem.name}
-                  fill
-                  className="object-contain"
-                  sizes="100vw"
-                  quality={90}
-                  priority
-                />
-              </motion.div>
+                src={currentMediaUrl || ''}
+                alt={currentItem.name}
+                className="max-w-full max-h-full object-contain"
+              />
             )}
           </div>
 
           {/* Navigation Arrows - larger touch targets on mobile */}
-          {currentMedia.length > 1 || currentIndex > 0 ? (
+          {(currentImageIndex > 0 || currentIndex > 0) && (
             <button
               onClick={(e) => {
                 e.stopPropagation();
@@ -200,8 +228,8 @@ export const PhotoDetailModal: React.FC<PhotoDetailModalProps> = ({
             >
               <ChevronLeft className="w-5 h-5 sm:w-6 sm:h-6" />
             </button>
-          ) : null}
-          {currentMedia.length > 1 || currentIndex < allItems.length - 1 ? (
+          )}
+          {(currentImageIndex < currentMedia.length - 1 || currentIndex < mediaItems.length - 1) && (
             <button
               onClick={(e) => {
                 e.stopPropagation();
@@ -211,7 +239,7 @@ export const PhotoDetailModal: React.FC<PhotoDetailModalProps> = ({
             >
               <ChevronRight className="w-5 h-5 sm:w-6 sm:h-6" />
             </button>
-          ) : null}
+          )}
 
           {/* Image Dots Indicator */}
           {currentMedia.length > 1 && (

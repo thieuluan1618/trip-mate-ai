@@ -66,7 +66,7 @@ export const PhotoGrid: React.FC<PhotoGridProps> = ({ items, onSelect, loading =
       <Masonry
         breakpointCols={breakpointColumns}
         className="flex gap-2 sm:gap-3 -ml-2 sm:-ml-3"
-        columnClassName="pl-2 sm:pl-3 bg-clip-padding"
+        columnClassName="pl-1 sm:pl-2bg-clip-padding"
       >
         {Array.from({ length: 6 }).map((_, idx) => (
           <PhotoCardSkeleton key={idx} />
@@ -90,7 +90,7 @@ export const PhotoGrid: React.FC<PhotoGridProps> = ({ items, onSelect, loading =
       <Masonry
         breakpointCols={breakpointColumns}
         className="flex gap-2 sm:gap-3 -ml-2 sm:-ml-3"
-        columnClassName="pl-2 sm:pl-3 bg-clip-padding"
+        columnClassName="pl-1 sm:pl-2bg-clip-padding"
       >
         {visibleItems.map((item) => (
           <div key={item.id} className="mb-2 sm:mb-3">
