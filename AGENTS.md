@@ -62,7 +62,12 @@ trip-mate-ai/
 │   └── seedData.ts              # Sample trip data
 ├── scripts/
 │   ├── seed.ts                  # CLI seed script
-│   └── migrate-thumbnails.ts    # Thumbnail migration script
+│   ├── migrate-thumbnails.ts    # Image thumbnail migration
+│   ├── migrate-video-thumbnails.ts  # Video thumbnail migration (requires ffmpeg)
+│   ├── backupFirebaseData.ts    # Backup Firestore data to JSON
+│   ├── backupWithAssets.ts      # Backup data + download assets
+│   ├── checkDatabase.ts         # Debug database connection
+│   └── deletePhotoByName.ts     # Delete item by name
 ├── types/
 │   └── index.ts                 # TypeScript type definitions
 ├── public/                      # Static assets
@@ -113,6 +118,10 @@ npx dotenv -e .env.local -- npx tsx scripts/seed.ts
 npx dotenv -e .env.local -- npx tsx scripts/migrate-thumbnails.ts
 npx dotenv -e .env.local -- npx tsx scripts/migrate-thumbnails.ts --dry-run  # Preview
 npx dotenv -e .env.local -- npx tsx scripts/migrate-thumbnails.ts --limit=5  # Test with 5
+
+# Migrate thumbnails for existing videos (requires ffmpeg)
+npx dotenv -e .env.local -- npx tsx scripts/migrate-video-thumbnails.ts
+npx dotenv -e .env.local -- npx tsx scripts/migrate-video-thumbnails.ts --dry-run  # Preview
 ```
 
 ---
@@ -326,4 +335,4 @@ Add all `.env.local` variables in Vercel dashboard → Settings → Environment 
 
 ---
 
-**Last Updated:** January 24, 2026
+**Last Updated:** January 28, 2026
