@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 
-import { X, ChevronLeft, ChevronRight, Edit2, Trash2 } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, Edit2, Trash2, Download } from 'lucide-react';
 import { TripItem } from '@/types';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -150,6 +150,19 @@ export const PhotoDetailModal: React.FC<PhotoDetailModalProps> = ({
 
   const currentMediaUrl = currentMedia[currentImageIndex] || currentItem.imageUrl || currentItem.videoUrl;
 
+  const handleDownload = () => {
+    if (!currentMediaUrl) return;
+    const ext = isVideo ? 'mp4' : 'jpg';
+    const filename = `${currentItem.name.replace(/[^a-zA-Z0-9]/g, '_')}_${currentImageIndex + 1}.${ext}`;
+    const downloadUrl = `/api/download?url=${encodeURIComponent(currentMediaUrl)}&filename=${encodeURIComponent(filename)}`;
+    const link = document.createElement('a');
+    link.href = downloadUrl;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <AnimatePresence>
       {isOpen && (
@@ -183,6 +196,13 @@ export const PhotoDetailModal: React.FC<PhotoDetailModalProps> = ({
                   <Trash2 className="w-5 h-5" />
                 </button>
               )}
+              <button
+                onClick={handleDownload}
+                className="p-2 bg-white/20 backdrop-blur-sm rounded-full text-white hover:bg-white/30 transition-colors"
+                title="Tải xuống"
+              >
+                <Download className="w-5 h-5" />
+              </button>
             </div>
             <button
               onClick={onClose}
