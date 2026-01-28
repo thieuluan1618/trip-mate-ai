@@ -201,8 +201,9 @@ export const PhotoDetailModal: React.FC<PhotoDetailModalProps> = ({
                 animate={{ scale: 1, opacity: 1 }}
                 transition={{ duration: 0.2 }}
                 src={currentMediaUrl}
-                controls
                 className="w-full h-full object-contain"
+                controls
+                playsInline
               />
             ) : (
               <motion.img

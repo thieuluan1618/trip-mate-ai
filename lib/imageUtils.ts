@@ -77,6 +77,75 @@ export const fileToPreviewUrl = (file: File): string => {
 };
 
 /**
+ * Generate thumbnail from video file (extracts frame at 1 second)
+ */
+export const generateVideoThumbnail = (file: File): Promise<{ thumbnail: Blob; blurDataUrl: string }> => {
+  return new Promise((resolve, reject) => {
+    const video = document.createElement('video');
+    video.preload = 'metadata';
+    video.muted = true;
+    video.playsInline = true;
+    
+    video.onloadeddata = () => {
+      // Seek to 1 second or 10% of duration (whichever is smaller)
+      video.currentTime = Math.min(1, video.duration * 0.1);
+    };
+    
+    video.onseeked = () => {
+      try {
+        // Create thumbnail canvas (400px width)
+        const canvas = document.createElement('canvas');
+        const aspectRatio = video.videoHeight / video.videoWidth;
+        canvas.width = 400;
+        canvas.height = Math.round(400 * aspectRatio);
+        
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          reject(new Error('Failed to get canvas context'));
+          return;
+        }
+        
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        
+        // Generate thumbnail blob
+        canvas.toBlob(
+          (thumbnailBlob) => {
+            if (!thumbnailBlob) {
+              reject(new Error('Failed to create thumbnail blob'));
+              return;
+            }
+            
+            // Generate blur placeholder (16px)
+            const blurCanvas = document.createElement('canvas');
+            blurCanvas.width = 16;
+            blurCanvas.height = Math.round(16 * aspectRatio);
+            const blurCtx = blurCanvas.getContext('2d');
+            blurCtx?.drawImage(video, 0, 0, blurCanvas.width, blurCanvas.height);
+            const blurDataUrl = blurCanvas.toDataURL('image/webp', 0.2);
+            
+            // Cleanup
+            URL.revokeObjectURL(video.src);
+            
+            resolve({ thumbnail: thumbnailBlob, blurDataUrl });
+          },
+          'image/webp',
+          0.8
+        );
+      } catch (error) {
+        reject(error);
+      }
+    };
+    
+    video.onerror = () => {
+      URL.revokeObjectURL(video.src);
+      reject(new Error('Failed to load video'));
+    };
+    
+    video.src = URL.createObjectURL(file);
+  });
+};
+
+/**
  * Extract the original date from image EXIF data
  * Falls back to file lastModified or current date if no EXIF data
  */

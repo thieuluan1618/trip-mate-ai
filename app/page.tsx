@@ -17,7 +17,7 @@ import {
 import { appVoice, getRandomMessage } from '@/lib/appVoice';
 import { useAuth } from '@/lib/authContext';
 import { getOrCreateDefaultTrip, subscribeTripItems } from '@/lib/firestoreUtils';
-import { compressImage, fileToBase64, getImageDate } from '@/lib/imageUtils';
+import { compressImage, fileToBase64, getImageDate, generateVideoThumbnail } from '@/lib/imageUtils';
 import { CategoryInfo, TabType, TripItem } from '@/types';
 import {
   Camera,
@@ -122,13 +122,28 @@ const SmartUploader = ({
         const isVideo = file.type.startsWith('video/');
 
         if (isVideo) {
-          // Handle video - NO AI analysis, just upload via API
-          const uploaded = await uploadFile(file, tripId);
-          
-          // Use file's lastModified date or current date
+          // Handle video - Generate thumbnail, then upload both
           const videoDate = file.lastModified ? new Date(file.lastModified) : new Date();
+          
+          // Generate video thumbnail (client-side)
+          let thumbnailUrl = '';
+          let blurDataUrl = '';
+          try {
+            const { thumbnail, blurDataUrl: blur } = await generateVideoThumbnail(file);
+            blurDataUrl = blur;
+            
+            // Upload thumbnail as a separate file
+            const thumbnailFile = new File([thumbnail], `${file.name}_thumb.webp`, { type: 'image/webp' });
+            const thumbUploaded = await uploadFile(thumbnailFile, tripId);
+            thumbnailUrl = thumbUploaded.url;
+          } catch (thumbError) {
+            console.warn('Video thumbnail generation failed:', thumbError);
+          }
+          
+          // Upload video
+          const uploaded = await uploadFile(file, tripId);
 
-          // Create video item without AI (no ID - Firestore will generate)
+          // Create video item with thumbnail
           const newItem: Omit<TripItem, 'id'> = {
             tripId,
             name: file.name.replace(/\.[^/.]+$/, ''), // Remove extension
@@ -136,6 +151,8 @@ const SmartUploader = ({
             category: 'video',
             type: 'memory',
             videoUrl: uploaded.url,
+            thumbnailUrl,
+            blurDataUrl,
             timestamp: videoDate,
             description: 'Video kỷ niệm 🎬',
             createdBy: userId,

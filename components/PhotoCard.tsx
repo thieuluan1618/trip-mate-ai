@@ -43,35 +43,21 @@ export const PhotoCard: React.FC<PhotoCardProps> = ({ item, onClick }) => {
       className="relative break-inside-avoid mb-2 sm:mb-3 rounded-xl overflow-hidden group cursor-pointer shadow-sm hover:shadow-lg active:scale-98 transition-all duration-200"
       onClick={onClick}
     >
-      {/* Image or Video */}
-      {isVideo ? (
-        <video
-          src={item.videoUrl}
+      {/* Always show thumbnail/image - videos use thumbnail in grid */}
+      <div className="relative aspect-auto">
+        <Image
+          src={displayUrl}
+          alt={item.name}
+          width={400}
+          height={400}
+          sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, 25vw"
           className="w-full h-auto object-cover"
-          muted
-          playsInline
-          onMouseEnter={(e) => e.currentTarget.play()}
-          onMouseLeave={(e) => {
-            e.currentTarget.pause();
-            e.currentTarget.currentTime = 0;
-          }}
+          placeholder="blur"
+          blurDataURL={blurDataUrl}
+          loading="lazy"
+          quality={80}
         />
-      ) : (
-        <div className="relative aspect-auto">
-          <Image
-            src={displayUrl}
-            alt={item.name}
-            width={400}
-            height={400}
-            sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, 25vw"
-            className="w-full h-auto object-cover"
-            placeholder="blur"
-            blurDataURL={blurDataUrl}
-            loading="lazy"
-            quality={80}
-          />
-        </div>
-      )}
+      </div>
 
       {/* Overlay (shows on hover/tap) - optimized for touch */}
       <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 group-active:opacity-100 transition-opacity duration-200">

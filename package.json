@@ -6,7 +6,10 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "backup-data": "dotenv -e .env.local -- tsx scripts/backupFirebaseData.ts",
+    "backup-full": "dotenv -e .env.local -- tsx scripts/backupWithAssets.ts",
+    "delete-photo": "dotenv -e .env.local -- tsx scripts/deletePhotoByName.ts"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
