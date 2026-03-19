@@ -1,11 +1,23 @@
 import { GoogleGenAI } from '@google/genai';
 import * as fs from 'fs';
 import * as path from 'path';
+import * as os from 'os';
 
 function loadVertexCredentials() {
   if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
     return;
   }
+
+  // Support credentials as env var (for cloud deployments like Amplify/Vercel)
+  const credJson = process.env.GOOGLE_CREDENTIALS_JSON;
+  if (credJson) {
+    const tmpPath = path.join(os.tmpdir(), 'vertex-ai-client.json');
+    fs.writeFileSync(tmpPath, credJson);
+    process.env.GOOGLE_APPLICATION_CREDENTIALS = tmpPath;
+    return;
+  }
+
+  // Local dev: auto-detect file in project root
   const credPath = path.resolve(process.cwd(), 'vertex-ai-client.json');
   if (fs.existsSync(credPath)) {
     process.env.GOOGLE_APPLICATION_CREDENTIALS = credPath;
