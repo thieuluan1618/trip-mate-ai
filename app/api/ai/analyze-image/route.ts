@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { GoogleGenerativeAI } from '@google/generative-ai';
-
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
+import { genaiClient, GEMINI_MODEL } from '@/lib/vertexai';
 
 export interface AIAnalysisResult {
   type: 'expense' | 'memory';
@@ -22,8 +20,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash-preview-09-2025' });
-
     const prompt = `
       Hãy phân tích bức ảnh này để hỗ trợ ứng dụng quản lý chi tiêu du lịch.
       Trả về kết quả dưới dạng JSON KHÔNG CÓ markdown format (chỉ raw json string).
@@ -43,12 +39,20 @@ export async function POST(request: NextRequest) {
       }
     `;
 
-    const result = await model.generateContent([
-      prompt,
-      { inlineData: { data: base64Data, mimeType } },
-    ]);
+    const response = await genaiClient.models.generateContent({
+      model: GEMINI_MODEL,
+      contents: [
+        {
+          role: 'user',
+          parts: [
+            { text: prompt },
+            { inlineData: { data: base64Data, mimeType } },
+          ],
+        },
+      ],
+    });
 
-    const text = result.response.text();
+    const text = response.text || '';
     const jsonStr = text.replace(/```json|```/g, '').trim();
     const analysisResult = JSON.parse(jsonStr) as AIAnalysisResult;
 
