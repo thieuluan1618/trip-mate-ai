@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { tripName, totalBudget, startDate, endDate, currency, memberCount, createdBy } = body;
 
-    if (!tripName || !totalBudget || !startDate || !currency || !memberCount || !createdBy) {
+    if (!tripName || totalBudget == null || !startDate || !currency || memberCount == null || !createdBy) {
       return NextResponse.json(
         { error: 'Missing required fields' },
         { status: 400 }

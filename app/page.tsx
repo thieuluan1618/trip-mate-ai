@@ -2,16 +2,23 @@
 
 import { AuthGuard } from '@/components/AuthGuard';
 import { CategoryType, FilterChips, FilterType } from '@/components/FilterChips';
+import { NewTripSuggestionModal } from '@/components/NewTripSuggestionModal';
 import { PhotoDetailModal } from '@/components/PhotoDetailModal';
+import { TripSelector } from '@/components/TripSelector';
 import { PhotoGrid } from '@/components/PhotoGrid';
 import { PreviewModal } from '@/components/PreviewModal';
 import { useToast } from '@/components/Toast';
 import {
   analyzeImage as analyzeImageAPI,
   analyzeTripExpenses,
+  createTrip,
   deleteTripItem,
+  generateTripStory,
+  getTripById,
   getUserTrips,
   saveTripItem,
+  selectCoverPhoto,
+  updateTrip,
   uploadFile
 } from '@/lib/apiClient';
 import { appVoice, getRandomMessage } from '@/lib/appVoice';
@@ -20,6 +27,7 @@ import { getOrCreateDefaultTrip, subscribeTripItems } from '@/lib/firestoreUtils
 import { compressImage, fileToBase64, getImageDate, generateVideoThumbnail } from '@/lib/imageUtils';
 import { CategoryInfo, TabType, TripItem } from '@/types';
 import {
+  BookOpen,
   Camera,
   Car,
   Clock,
@@ -31,6 +39,7 @@ import {
   LogIn,
   MapPin,
   PieChart,
+  RefreshCw,
   Sparkles,
   Users,
   Utensils,
@@ -65,16 +74,41 @@ const AuthButton = () => {
   );
 };
 
+const DATE_DISTANCE_THRESHOLD_DAYS = 30;
+
+const getItemDateRange = (items: TripItem[]) => {
+  if (items.length === 0) return null;
+  const timestamps = items.map((item) => new Date(item.timestamp).getTime());
+  return {
+    earliest: new Date(Math.min(...timestamps)),
+    latest: new Date(Math.max(...timestamps)),
+  };
+};
+
+const isDateFarFromTrip = (photoDate: Date, items: TripItem[]): boolean => {
+  const range = getItemDateRange(items);
+  if (!range) return false;
+  const photoTime = new Date(photoDate).getTime();
+  const diffFromEarliest = Math.abs(photoTime - range.earliest.getTime());
+  const diffFromLatest = Math.abs(photoTime - range.latest.getTime());
+  const thresholdMs = DATE_DISTANCE_THRESHOLD_DAYS * 24 * 60 * 60 * 1000;
+  return diffFromEarliest > thresholdMs && diffFromLatest > thresholdMs;
+};
+
 const SmartUploader = ({
   isProcessing,
   setIsProcessing,
   tripId,
   userId,
+  items,
+  onTripSwitch,
 }: {
   isProcessing: boolean;
   setIsProcessing: (val: boolean) => void;
   tripId: string;
   userId: string;
+  items: TripItem[];
+  onTripSwitch: (tripId: string, tripName: string) => void;
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { showToast } = useToast();
@@ -82,6 +116,116 @@ const SmartUploader = ({
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [uploadProgress, setUploadProgress] = useState({ current: 0, total: 0 });
+  const [tripSuggestion, setTripSuggestion] = useState<{
+    photoDate: Date;
+    tripDateRange: { earliest: Date; latest: Date };
+    pendingFiles: File[];
+  } | null>(null);
+  const [isCreatingTrip, setIsCreatingTrip] = useState(false);
+
+  const uploadFiles = async (fileArray: File[], targetTripId: string) => {
+    setIsProcessing(true);
+    setUploadProgress({ current: 0, total: fileArray.length });
+
+    let successCount = 0;
+    let errorCount = 0;
+
+    for (let i = 0; i < fileArray.length; i++) {
+      const file = fileArray[i];
+      setUploadProgress({ current: i + 1, total: fileArray.length });
+      try {
+        // Check if video
+        const isVideo = file.type.startsWith('video/');
+
+        if (isVideo) {
+          // Handle video - Generate thumbnail, then upload both
+          const videoDate = file.lastModified ? new Date(file.lastModified) : new Date();
+
+          // Generate video thumbnail (client-side)
+          let thumbnailUrl = '';
+          let blurDataUrl = '';
+          try {
+            const { thumbnail, blurDataUrl: blur } = await generateVideoThumbnail(file);
+            blurDataUrl = blur;
+
+            // Upload thumbnail as a separate file
+            const thumbnailFile = new File([thumbnail], `${file.name}_thumb.webp`, { type: 'image/webp' });
+            const thumbUploaded = await uploadFile(thumbnailFile, targetTripId);
+            thumbnailUrl = thumbUploaded.url;
+          } catch (thumbError) {
+            console.warn('Video thumbnail generation failed:', thumbError);
+          }
+
+          // Upload video
+          const uploaded = await uploadFile(file, targetTripId);
+
+          // Create video item with thumbnail
+          const newItem: Omit<TripItem, 'id'> = {
+            tripId: targetTripId,
+            name: file.name.replace(/\.[^/.]+$/, ''), // Remove extension
+            amount: 0,
+            category: 'video',
+            type: 'memory',
+            videoUrl: uploaded.url,
+            thumbnailUrl,
+            blurDataUrl,
+            timestamp: videoDate,
+            description: 'Video kỷ niệm 🎬',
+            createdBy: userId,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          };
+
+          await saveTripItem(targetTripId, newItem);
+          successCount++;
+        } else {
+          // Handle image with AI analysis via API
+          // Extract EXIF date before compression (compression may strip EXIF)
+          const photoDate = await getImageDate(file);
+
+          const compressedFile = await compressImage(file);
+          const base64Data = await fileToBase64(compressedFile);
+          const aiData = await analyzeImageAPI(base64Data, compressedFile.type);
+
+          const uploaded = await uploadFile(compressedFile, targetTripId);
+
+          const newItem: Omit<TripItem, 'id'> = {
+            tripId: targetTripId,
+            name: aiData.name,
+            amount: aiData.amount,
+            category: aiData.category,
+            type: aiData.type,
+            imageUrl: uploaded.url,
+            thumbnailUrl: uploaded.thumbnailUrl,
+            blurDataUrl: uploaded.blurDataUrl,
+            timestamp: photoDate,
+            description: aiData.description,
+            createdBy: userId,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          };
+
+          await saveTripItem(targetTripId, newItem);
+          successCount++;
+        }
+      } catch (error) {
+        console.error('Upload Failed for file:', file.name, error);
+        errorCount++;
+      }
+    }
+
+    setIsProcessing(false);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+
+    // Show summary toast
+    if (successCount > 0 && errorCount === 0) {
+      showToast(`Đã lưu ${successCount} file thành công! ✅`, 'success');
+    } else if (successCount > 0 && errorCount > 0) {
+      showToast(`Đã lưu ${successCount} file, ${errorCount} lỗi ⚠️`, 'success');
+    } else {
+      showToast(getRandomMessage(appVoice.uploadErrors), 'error');
+    }
+  };
 
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
@@ -106,109 +250,69 @@ const SmartUploader = ({
       return;
     }
 
-    setIsProcessing(true);
-
     const fileArray = Array.from(files);
-    setUploadProgress({ current: 0, total: fileArray.length });
 
-    let successCount = 0;
-    let errorCount = 0;
+    // Check date distance for the first file in batch
+    if (items.length > 0) {
+      const firstFile = fileArray[0];
+      let firstFileDate: Date;
 
-    for (let i = 0; i < fileArray.length; i++) {
-      const file = fileArray[i];
-      setUploadProgress({ current: i + 1, total: fileArray.length });
-      try {
-        // Check if video
-        const isVideo = file.type.startsWith('video/');
+      if (firstFile.type.startsWith('video/')) {
+        firstFileDate = firstFile.lastModified ? new Date(firstFile.lastModified) : new Date();
+      } else {
+        firstFileDate = await getImageDate(firstFile);
+      }
 
-        if (isVideo) {
-          // Handle video - Generate thumbnail, then upload both
-          const videoDate = file.lastModified ? new Date(file.lastModified) : new Date();
-          
-          // Generate video thumbnail (client-side)
-          let thumbnailUrl = '';
-          let blurDataUrl = '';
-          try {
-            const { thumbnail, blurDataUrl: blur } = await generateVideoThumbnail(file);
-            blurDataUrl = blur;
-            
-            // Upload thumbnail as a separate file
-            const thumbnailFile = new File([thumbnail], `${file.name}_thumb.webp`, { type: 'image/webp' });
-            const thumbUploaded = await uploadFile(thumbnailFile, tripId);
-            thumbnailUrl = thumbUploaded.url;
-          } catch (thumbError) {
-            console.warn('Video thumbnail generation failed:', thumbError);
-          }
-          
-          // Upload video
-          const uploaded = await uploadFile(file, tripId);
-
-          // Create video item with thumbnail
-          const newItem: Omit<TripItem, 'id'> = {
-            tripId,
-            name: file.name.replace(/\.[^/.]+$/, ''), // Remove extension
-            amount: 0,
-            category: 'video',
-            type: 'memory',
-            videoUrl: uploaded.url,
-            thumbnailUrl,
-            blurDataUrl,
-            timestamp: videoDate,
-            description: 'Video kỷ niệm 🎬',
-            createdBy: userId,
-            createdAt: new Date(),
-            updatedAt: new Date(),
-          };
-
-          await saveTripItem(tripId, newItem);
-          successCount++;
-        } else {
-          // Handle image with AI analysis via API
-          // Extract EXIF date before compression (compression may strip EXIF)
-          const photoDate = await getImageDate(file);
-          
-          const compressedFile = await compressImage(file);
-          const base64Data = await fileToBase64(compressedFile);
-          const aiData = await analyzeImageAPI(base64Data, compressedFile.type);
-
-          const uploaded = await uploadFile(compressedFile, tripId);
-
-          const newItem: Omit<TripItem, 'id'> = {
-            tripId,
-            name: aiData.name,
-            amount: aiData.amount,
-            category: aiData.category,
-            type: aiData.type,
-            imageUrl: uploaded.url,
-            thumbnailUrl: uploaded.thumbnailUrl,
-            blurDataUrl: uploaded.blurDataUrl,
-            timestamp: photoDate,
-            description: aiData.description,
-            createdBy: userId,
-            createdAt: new Date(),
-            updatedAt: new Date(),
-          };
-
-          await saveTripItem(tripId, newItem);
-          successCount++;
-        }
-      } catch (error) {
-        console.error('Upload Failed for file:', file.name, error);
-        errorCount++;
+      if (isDateFarFromTrip(firstFileDate, items)) {
+        const range = getItemDateRange(items)!;
+        setTripSuggestion({
+          photoDate: firstFileDate,
+          tripDateRange: range,
+          pendingFiles: fileArray,
+        });
+        if (fileInputRef.current) fileInputRef.current.value = '';
+        return;
       }
     }
 
-    setIsProcessing(false);
-    if (fileInputRef.current) fileInputRef.current.value = '';
+    await uploadFiles(fileArray, tripId);
+  };
 
-    // Show summary toast
-    if (successCount > 0 && errorCount === 0) {
-      showToast(`Đã lưu ${successCount} file thành công! ✅`, 'success');
-    } else if (successCount > 0 && errorCount > 0) {
-      showToast(`Đã lưu ${successCount} file, ${errorCount} lỗi ⚠️`, 'success');
-    } else {
-      showToast(getRandomMessage(appVoice.uploadErrors), 'error');
+  const handleTripSuggestionCreateTrip = async (tripName: string) => {
+    if (!tripSuggestion) return;
+    setIsCreatingTrip(true);
+    try {
+      const newTripId = await createTrip({
+        tripName,
+        totalBudget: 0,
+        startDate: tripSuggestion.photoDate,
+        currency: 'VND',
+        memberCount: 1,
+        createdBy: userId,
+      });
+
+      onTripSwitch(newTripId, tripName);
+      const pendingFiles = tripSuggestion.pendingFiles;
+      setTripSuggestion(null);
+      setIsCreatingTrip(false);
+
+      await uploadFiles(pendingFiles, newTripId);
+    } catch (error) {
+      console.error('Failed to create trip:', error);
+      showToast('Không thể tạo chuyến đi mới. Thử lại sau!', 'error');
+      setIsCreatingTrip(false);
     }
+  };
+
+  const handleTripSuggestionContinue = async () => {
+    if (!tripSuggestion) return;
+    const pendingFiles = tripSuggestion.pendingFiles;
+    setTripSuggestion(null);
+    await uploadFiles(pendingFiles, tripId);
+  };
+
+  const handleTripSuggestionClose = () => {
+    setTripSuggestion(null);
   };
 
   const handleConfirm = async () => {
@@ -297,6 +401,18 @@ const SmartUploader = ({
           onEdit={handleEditField}
         />
       )}
+
+      {tripSuggestion && (
+        <NewTripSuggestionModal
+          isOpen={!!tripSuggestion}
+          photoDate={tripSuggestion.photoDate}
+          tripDateRange={tripSuggestion.tripDateRange}
+          onCreateTrip={handleTripSuggestionCreateTrip}
+          onContinue={handleTripSuggestionContinue}
+          onClose={handleTripSuggestionClose}
+          isLoading={isCreatingTrip}
+        />
+      )}
     </>
   );
 };
@@ -315,9 +431,14 @@ function AppContent() {
   const [selectedItem, setSelectedItem] = useState<TripItem | null>(null);
   const [aiAnalysis, setAiAnalysis] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [tripStory, setTripStory] = useState('');
+  const [isGeneratingStory, setIsGeneratingStory] = useState(false);
+  const [coverImageUrl, setCoverImageUrl] = useState('');
+  const [isSelectingCover, setIsSelectingCover] = useState(false);
   const [tripId, setTripId] = useState<string>('trip-1');
   const [tripName, setTripName] = useState<string>('');
   const [loadingData, setLoadingData] = useState(true);
+  const unsubscribeRef = useRef<(() => void) | null>(null);
 
   // Sync selected item with URL (use window.history for immediate update)
   const selectItem = useCallback((item: TripItem | null) => {
@@ -354,6 +475,9 @@ function AppContent() {
           // Use the most recent trip
           id = trips[0].id;
           name = trips[0].tripName;
+          // Load persisted AI data
+          if (trips[0].coverImageUrl) setCoverImageUrl(trips[0].coverImageUrl);
+          if (trips[0].story) setTripStory(trips[0].story);
         } else {
           // Create default trip if none exists
           id = await getOrCreateDefaultTrip(userId);
@@ -372,6 +496,7 @@ function AppContent() {
           setLoadingData(false);
         });
 
+        unsubscribeRef.current = unsubscribe;
         return unsubscribe;
       } catch (error) {
         console.error('Failed to initialize trip:', error);
@@ -385,6 +510,35 @@ function AppContent() {
       unsubscribe?.then((unsub) => unsub?.());
     };
   }, [user]);
+
+  const handleTripSwitch = useCallback(async (newTripId: string, newTripName: string) => {
+    // Unsubscribe from current trip
+    unsubscribeRef.current?.();
+
+    setTripId(newTripId);
+    setTripName(newTripName);
+    setData([]);
+    setLoadingData(true);
+    setTripStory('');
+    setCoverImageUrl('');
+    setAiAnalysis('');
+
+    // Load persisted trip AI data
+    try {
+      const trip = await getTripById(newTripId);
+      if (trip.coverImageUrl) setCoverImageUrl(trip.coverImageUrl);
+      if (trip.story) setTripStory(trip.story);
+    } catch (error) {
+      console.error('Failed to load trip details:', error);
+    }
+
+    // Subscribe to new trip's items
+    const unsubscribe = subscribeTripItems(newTripId, (items) => {
+      setData(items.length > 0 ? items : []);
+      setLoadingData(false);
+    });
+    unsubscribeRef.current = unsubscribe;
+  }, []);
 
   // Filter data based on filters
   const filteredData = useMemo(() => {
@@ -451,6 +605,37 @@ function AppContent() {
     }
   };
 
+  const handleSelectCoverPhoto = async () => {
+    if (data.length === 0) return;
+    setIsSelectingCover(true);
+    try {
+      const result = await selectCoverPhoto(data);
+      setCoverImageUrl(result.coverImageUrl);
+      await updateTrip(tripId, { coverImageUrl: result.coverImageUrl });
+    } catch (error) {
+      console.error('Cover photo selection failed:', error);
+      showToast('Không thể chọn ảnh bìa. Thử lại sau!', 'error');
+    } finally {
+      setIsSelectingCover(false);
+    }
+  };
+
+  const handleGenerateStory = async () => {
+    if (data.length === 0) return;
+    setIsGeneratingStory(true);
+    setTripStory('');
+    try {
+      const story = await generateTripStory(tripName, data);
+      setTripStory(story);
+      await updateTrip(tripId, { story });
+    } catch (error) {
+      console.error('Story generation failed:', error);
+      setTripStory('Lỗi AI. Thử lại sau.');
+    } finally {
+      setIsGeneratingStory(false);
+    }
+  };
+
   const formatDate = (date: Date) => {
     const d = new Date(date);
     return `${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')} • ${d.getDate()}/${d.getMonth() + 1}`;
@@ -461,14 +646,12 @@ function AppContent() {
       <div className="max-w-md md:max-w-2xl lg:max-w-4xl mx-auto min-h-screen bg-white shadow-xl flex flex-col">
         {/* Header */}
         <div className="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-slate-100 p-4 flex justify-between items-center">
-          <div>
-            <h1 className="text-xl font-black bg-gradient-to-r from-indigo-600 to-violet-600 bg-clip-text text-transparent">
-              {tripName || 'Trip Mate AI'}
-            </h1>
-            {/* <p className="text-xs text-slate-500 font-medium">
-              {user ? user.displayName : '👤 Chưa đăng nhập'}
-            </p> */}
-          </div>
+          <TripSelector
+            currentTripId={tripId}
+            currentTripName={tripName}
+            userId={user?.uid || 'guest'}
+            onTripSwitch={handleTripSwitch}
+          />
           <div className="flex gap-2">
             <button
               onClick={() => setActiveTab('gallery')}
@@ -524,10 +707,12 @@ function AppContent() {
           {activeTab === 'gallery' && (
             <>
               <SmartUploader
-                                isProcessing={isProcessing}
+                isProcessing={isProcessing}
                 setIsProcessing={setIsProcessing}
                 tripId={tripId}
                 userId={user?.uid || 'guest'}
+                items={data}
+                onTripSwitch={handleTripSwitch}
               />
               <div className="sticky top-14 z-30 bg-white/95 backdrop-blur-sm py-2 -mx-4 px-4 border-b border-slate-100">
                 <FilterChips
@@ -549,10 +734,12 @@ function AppContent() {
           {activeTab !== 'gallery' && (
             <>
               <SmartUploader
-                                isProcessing={isProcessing}
+                isProcessing={isProcessing}
                 setIsProcessing={setIsProcessing}
                 tripId={tripId}
                 userId={user?.uid || 'guest'}
+                items={data}
+                onTripSwitch={handleTripSwitch}
               />
 
               {/* Timeline */}
@@ -626,6 +813,51 @@ function AppContent() {
           {/* Dashboard */}
           {activeTab === 'dashboard' && (
             <div className="space-y-6">
+              {/* Cover Photo Hero */}
+              {coverImageUrl ? (
+                <div className="relative rounded-2xl overflow-hidden shadow-lg h-48">
+                  <img
+                    src={coverImageUrl}
+                    alt="Trip cover"
+                    className="w-full h-full object-cover"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                  <div className="absolute bottom-4 left-4 right-4 flex items-end justify-between">
+                    <h2 className="text-white font-black text-xl drop-shadow-lg">{tripName}</h2>
+                    <button
+                      onClick={handleSelectCoverPhoto}
+                      disabled={isSelectingCover}
+                      className="text-white/80 hover:text-white text-xs flex items-center gap-1"
+                    >
+                      {isSelectingCover ? (
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                      ) : (
+                        <RefreshCw className="w-3 h-3" />
+                      )}
+                      Đổi ảnh
+                    </button>
+                  </div>
+                </div>
+              ) : data.length > 0 && data.some(i => i.thumbnailUrl || i.imageUrl) ? (
+                <button
+                  onClick={handleSelectCoverPhoto}
+                  disabled={isSelectingCover}
+                  className="w-full bg-white border-2 border-dashed border-slate-200 p-4 rounded-2xl flex items-center justify-center gap-2 text-sm font-semibold text-slate-500 hover:border-indigo-300 hover:text-indigo-600 transition-colors disabled:opacity-50"
+                >
+                  {isSelectingCover ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      AI đang chọn ảnh bìa...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-4 h-4" />
+                      AI chọn ảnh bìa chuyến đi
+                    </>
+                  )}
+                </button>
+              ) : null}
+
               <div className="bg-gradient-to-br from-indigo-600 to-violet-700 p-6 rounded-2xl text-white shadow-lg shadow-indigo-200">
                 <p className="text-indigo-100 text-sm font-medium mb-1">Tổng chi tiêu</p>
                 <h2 className="text-4xl font-black tracking-tight mb-4">
@@ -683,6 +915,48 @@ function AppContent() {
                     <X className="w-3 h-3" />
                   </button>
                   {aiAnalysis}
+                </div>
+              )}
+
+              {/* Trip Story */}
+              {!tripStory && !isGeneratingStory && data.length > 0 && (
+                <button
+                  onClick={handleGenerateStory}
+                  className="w-full bg-white border border-slate-200 p-3 rounded-xl flex items-center justify-center gap-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+                >
+                  <BookOpen className="w-4 h-4 text-indigo-500" />
+                  Tạo câu chuyện chuyến đi
+                </button>
+              )}
+              {isGeneratingStory && (
+                <div className="bg-white border border-slate-200 p-4 rounded-xl flex items-center justify-center gap-2 text-sm text-slate-500">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  AI đang viết câu chuyện...
+                </div>
+              )}
+              {tripStory && !isGeneratingStory && (
+                <div className="bg-gradient-to-br from-indigo-50 to-violet-50 p-4 rounded-xl border border-indigo-100 relative">
+                  <div className="flex items-center gap-2 mb-3">
+                    <BookOpen className="w-4 h-4 text-indigo-500" />
+                    <h3 className="font-bold text-indigo-700 text-sm">Câu chuyện chuyến đi</h3>
+                    <div className="flex-1" />
+                    <button
+                      onClick={handleGenerateStory}
+                      className="text-indigo-400 hover:text-indigo-600 transition-colors"
+                      title="Tạo lại câu chuyện"
+                    >
+                      <RefreshCw className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={() => setTripStory('')}
+                      className="text-indigo-400 hover:text-indigo-600 transition-colors"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                  <div className="text-sm text-slate-700 leading-relaxed whitespace-pre-line">
+                    {tripStory}
+                  </div>
                 </div>
               )}
 

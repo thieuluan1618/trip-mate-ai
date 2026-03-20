@@ -7,6 +7,8 @@ export interface Trip {
   currency: string;
   memberCount: number;
   createdBy: string;
+  coverImageUrl?: string;
+  story?: string;
   createdAt: Date;
   updatedAt: Date;
 }

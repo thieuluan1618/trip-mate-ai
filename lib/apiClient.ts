@@ -37,6 +37,48 @@ export const analyzeImage = async (
 /**
  * Analyze trip expenses using Gemini AI via API route
  */
+/**
+ * Select best cover photo for a trip using AI
+ */
+export const selectCoverPhoto = async (
+  items: any[]
+): Promise<{ coverImageUrl: string; reason: string }> => {
+  const response = await fetch('/api/ai/select-cover-photo', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ items }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || 'Failed to select cover photo');
+  }
+
+  return response.json();
+};
+
+/**
+ * Generate a trip story using AI
+ */
+export const generateTripStory = async (
+  tripName: string,
+  items: any[]
+): Promise<string> => {
+  const response = await fetch('/api/ai/generate-story', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ tripName, items }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || 'Failed to generate story');
+  }
+
+  const data = await response.json();
+  return data.story;
+};
+
 export const analyzeTripExpenses = async (expenses: any[]): Promise<string> => {
   const response = await fetch('/api/ai/analyze-expenses', {
     method: 'POST',
@@ -124,6 +166,8 @@ export const updateTrip = async (
     endDate: Date | string;
     currency: string;
     memberCount: number;
+    coverImageUrl: string;
+    story: string;
   }>
 ) => {
   const response = await fetch(`/api/trips/${tripId}`, {

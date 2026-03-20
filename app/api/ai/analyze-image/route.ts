@@ -25,9 +25,21 @@ export async function POST(request: NextRequest) {
       Trả về kết quả dưới dạng JSON KHÔNG CÓ markdown format (chỉ raw json string).
 
       Logic phân loại:
-      - Nếu là Hóa đơn/Bill/Menu giá tiền: type = "expense", category = "food" (hoặc stay/transport tùy ngữ cảnh), name = "Tên quán/dịch vụ", amount = số tiền tổng (số nguyên).
-      - Nếu là Đồ ăn (không có giá): type = "memory", category = "food", name = "Món ngon", description = "Mô tả ngắn hấp dẫn về món ăn + emoji".
-      - Nếu là Phong cảnh/Người: type = "memory", category = "scenery", name = "Khoảnh khắc", description = "Mô tả cảm xúc vui vẻ về bức ảnh + emoji".
+
+      1. Hóa đơn/Bill/Menu có giá tiền:
+         type = "expense", amount = số tiền tổng (số nguyên, đơn vị nghìn VND)
+         - Hóa đơn ăn uống → category = "food", name = "Tên quán/món"
+         - Hóa đơn khách sạn/phòng → category = "stay", name = "Tên khách sạn"
+         - Hóa đơn vé xe/taxi/xăng → category = "transport", name = "Tên dịch vụ"
+         - Hóa đơn khác → category = "other", name = "Mô tả ngắn"
+
+      2. Ảnh KHÔNG phải hóa đơn (kỷ niệm):
+         type = "memory", amount = 0
+         - Đồ ăn/thức uống/quán cafe → category = "food", name = "Tên món", description = "Mô tả hấp dẫn + emoji"
+         - Phong cảnh/thiên nhiên/kiến trúc/địa danh → category = "scenery", name = "Tên địa điểm/cảnh", description = "Mô tả cảm xúc + emoji"
+         - Khách sạn/phòng nghỉ/homestay → category = "stay", name = "Tên chỗ ở", description = "Mô tả + emoji"
+         - Phương tiện/đường đi/sân bay/ga tàu → category = "transport", name = "Mô tả ngắn", description = "Mô tả + emoji"
+         - Selfie/nhóm bạn/hoạt động/mua sắm → category = "other", name = "Mô tả ngắn", description = "Mô tả vui vẻ + emoji"
 
       JSON Schema:
       {
@@ -35,7 +47,7 @@ export async function POST(request: NextRequest) {
         "category": "food" | "stay" | "transport" | "scenery" | "other",
         "name": "string",
         "amount": number (chỉ nếu là expense, nếu không thì 0),
-        "description": "string"
+        "description": "string (mô tả ngắn gọn, sinh động, có emoji)"
       }
     `;
 
